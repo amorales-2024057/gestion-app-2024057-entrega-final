@@ -2,15 +2,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
-import { MovimientoService } from '../../../core/services/movimiento.service';
-import {
-    CategoriaIngreso,
-    CrearMovimientoRequest,
-    MovimientoPublico,
-    TipoMovimiento,
-    categoriasPorTipo,
-} from '../../../core/models/movimientos.service';
+import { AuthService } from '../../core/services/auth.service';
+import { MovimientoService } from '../../core/services/movimiento.service';
+import { CategoriaIngreso, CrearMovimientoRequest, MovimientoPublico, TipoMovimiento, categoriasPorTipo } from '../../core/models/movimiento.model';
 
 type FiltroTipo = 'TODOS' | TipoMovimiento;
 type FiltroPeriodo = 'TODOS' | 'MES';
