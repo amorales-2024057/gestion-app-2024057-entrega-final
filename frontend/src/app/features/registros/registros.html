@@ -1,0 +1,350 @@
+<div class="registros-page">
+  <div class="registros-page__decor" aria-hidden="true"></div>
+
+  <div class="registros-page__inner">
+
+    <header class="navbar">
+      <div class="brand">
+        <img src="logo-icono.png" alt="Code Pulse" class="brand__logo" />
+        <span class="brand__name">CODE-PULSE</span>
+      </div>
+
+      <nav class="navlinks">
+        <a routerLink="/dashboard" class="navlink navlink--enlace">Dashboard</a>
+        <span class="navlink navlink--activo">Registros</span>
+        <a routerLink="/nuevo-registro" class="navlink navlink--enlace">Nuevo Registro</a>
+        <button type="button" class="navlink navlink--boton" (click)="cerrarSesion()">Cerrar sesion</button>
+      </nav>
+
+      @if (usuario(); as datosUsuario) {
+        <div class="userbox">
+          <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+          <div class="userbox__text">
+            <span class="userbox__hi">Hola</span>
+            <span class="userbox__name">{{ datosUsuario.nombre }}</span>
+          </div>
+        </div>
+      }
+    </header>
+
+    <section class="page-head">
+      <div class="page-head__titles">
+        <h1>Mis Registros</h1>
+        <p>Consulta el historial completo de tus ingresos y egresos personales</p>
+      </div>
+    </section>
+
+    <section class="stats">
+      @if (cargando()) {
+        @for (relleno of [1, 2, 3, 4]; track relleno) {
+          <article class="stat-card stat-card--esqueleto" aria-hidden="true"></article>
+        }
+      } @else {
+        <article class="stat-card">
+          <div class="stat-card__top">
+            <span class="stat-card__label">Total de movimientos</span>
+            <span class="stat-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M9 4a3 3 0 016 0" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M9 10h6M9 14h6M9 18h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </div>
+          <div>
+            <p class="stat-card__value">{{ totalMovimientos() }}</p>
+            <p class="stat-card__delta stat-card__delta--positivo">+{{ operacionesEsteMes() }} operaciones este mes</p>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-card__top">
+            <span class="stat-card__label">Mis ingresos del Periodo</span>
+            <span class="stat-card__icon stat-card__icon--ingreso" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+          <div>
+            <p class="stat-card__value stat-card__value--ingreso">{{ formatearMonto(totalIngresos()) }}</p>
+            <p class="stat-card__delta">{{ deltaIngresos() }}</p>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-card__top">
+            <span class="stat-card__label">Mis egresos del Periodo</span>
+            <span class="stat-card__icon stat-card__icon--egreso" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5v14M12 19l6-6M12 19l-6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+          <div>
+            <p class="stat-card__value stat-card__value--egreso">{{ formatearMonto(totalEgresos()) }}</p>
+            <p class="stat-card__delta">{{ deltaEgresos() }}</p>
+          </div>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-card__top">
+            <span class="stat-card__label">Balance Neto Disponible</span>
+            <span class="stat-card__icon stat-card__icon--balance" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3v18M17 7.5c0-1.9-2.2-3-5-3s-5 1.1-5 3 1.8 2.6 5 3.2 5 1.4 5 3.3-2.2 3-5 3-5-1.1-5-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </div>
+          <div>
+            <p class="stat-card__value stat-card__value--balance">{{ formatearMonto(balanceNeto()) }}</p>
+            <p class="stat-card__delta">
+              <span class="stat-card__chip">{{ estadoBalance() }}</span>
+              {{ mesActual() }}
+            </p>
+          </div>
+        </article>
+      }
+    </section>
+
+    @if (mensajeError(); as mensaje) {
+      <div class="registros-alerta">
+        <span>{{ mensaje }}</span>
+        <button type="button" (click)="cargarMovimientos()">Reintentar</button>
+      </div>
+    }
+
+    @if (mensajeAccion(); as mensaje) {
+      <div class="registros-alerta registros-alerta--exito" (click)="mensajeAccion.set(null)">
+        <span>{{ mensaje }}</span>
+      </div>
+    }
+
+    <section class="toolbar">
+      <div class="toolbar__busqueda">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <input
+          type="text"
+          placeholder="Buscar en mis movimientos..."
+          (input)="buscar($event)"
+          aria-label="Buscar en mis movimientos"
+        />
+      </div>
+
+      <div class="toolbar__filtros">
+        <button type="button" class="pill" [class.pill--activo]="filtroTipo() === 'TODOS'" (click)="cambiarFiltroTipo('TODOS')">Todos</button>
+        <button type="button" class="pill" [class.pill--activo]="filtroTipo() === 'INGRESO'" (click)="cambiarFiltroTipo('INGRESO')">Ingresos</button>
+        <button type="button" class="pill" [class.pill--activo]="filtroTipo() === 'EGRESO'" (click)="cambiarFiltroTipo('EGRESO')">Egresos</button>
+      </div>
+
+      <select class="toolbar__periodo" (change)="cambiarFiltroPeriodo($event)" aria-label="Filtrar por periodo">
+        <option value="TODOS">Todo el historial</option>
+        <option value="MES">Este mes</option>
+      </select>
+    </section>
+
+    <section class="tabla-envoltura">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Categoría</th>
+            <th>Monto</th>
+            <th class="tabla__acciones-head">Acciones para el registro</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (cargando()) {
+            @for (relleno of [1, 2, 3, 4, 5, 6, 7]; track relleno) {
+              <tr class="tabla__fila tabla__fila--esqueleto" aria-hidden="true">
+                <td colspan="5"><span class="tabla__barra"></span></td>
+              </tr>
+            }
+          } @else if (paginaMovimientos().length === 0) {
+            <tr class="tabla__fila tabla__fila--vacia">
+              <td colspan="5">No hay registros que coincidan con su búsqueda.</td>
+            </tr>
+          } @else {
+            @for (movimiento of paginaMovimientos(); track movimiento.id) {
+              <tr class="tabla__fila">
+                <td class="tabla__fecha">{{ formatearFecha(movimiento.fecha) }}</td>
+                <td class="tabla__descripcion">{{ movimiento.descripcion }}</td>
+                <td><span class="tabla__categoria">{{ movimiento.categoriaEtiqueta }}</span></td>
+                <td
+                  class="tabla__monto"
+                  [class.tabla__monto--ingreso]="movimiento.tipo === 'INGRESO'"
+                  [class.tabla__monto--egreso]="movimiento.tipo === 'EGRESO'"
+                >{{ formatearMovimiento(movimiento) }}</td>
+                <td class="tabla__acciones">
+                  <button type="button" class="accion" (click)="ver(movimiento)">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="1.6"/>
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
+                    </svg>
+                    <span>Ver</span>
+                  </button>
+                  <button type="button" class="accion" (click)="abrirEdicion(movimiento)">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 20h4l11-11a2.1 2.1 0 00-3-3L5 17l-1 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Editar</span>
+                  </button>
+                  <button type="button" class="accion accion--peligro" (click)="pedirConfirmacionEliminacion(movimiento)">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6.5 7l1 13h9l1-13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Eliminar</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+
+      <footer class="tabla__pie">
+        <span class="tabla__info">
+          Mostrando <strong>{{ rangoTexto() }}</strong> de <strong>{{ filtrados().length }}</strong> registros
+        </span>
+
+        <div class="paginacion">
+          <button type="button" class="paginacion__boton" [disabled]="paginaActual() === 1" (click)="irAPagina(paginaActual() - 1)" aria-label="Página anterior">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          @for (pagina of paginas(); track pagina) {
+            <button type="button" class="paginacion__numero" [class.paginacion__numero--activo]="pagina === paginaActual()" (click)="irAPagina(pagina)">{{ pagina }}</button>
+          }
+
+          <button type="button" class="paginacion__boton" [disabled]="paginaActual() === totalPaginas()" (click)="irAPagina(paginaActual() + 1)" aria-label="Página siguiente">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  @if (seleccionado(); as movimiento) {
+    <div class="modal-fondo" (click)="cerrarModales()">
+      <article class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header class="modal__encabezado">
+          <h2>Detalle del registro</h2>
+          <button type="button" class="modal__cerrar" (click)="cerrarModales()" aria-label="Cerrar">×</button>
+        </header>
+        <div class="modal__cuerpo">
+          <p class="modal__tipo" [class.modal__tipo--egreso]="movimiento.tipo === 'EGRESO'">
+            {{ movimiento.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso' }}
+          </p>
+          <p class="modal__descripcion">{{ movimiento.descripcion }}</p>
+          <p class="modal__monto tabla__monto" [class.tabla__monto--ingreso]="movimiento.tipo === 'INGRESO'" [class.tabla__monto--egreso]="movimiento.tipo === 'EGRESO'">
+            {{ formatearMovimiento(movimiento) }}
+          </p>
+          <dl class="modal__datos">
+            <div>
+              <dt>Fecha</dt>
+              <dd>{{ formatearFecha(movimiento.fecha) }}</dd>
+            </div>
+            <div>
+              <dt>Categoría</dt>
+              <dd>{{ movimiento.categoriaEtiqueta }}</dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+    </div>
+  }
+
+  @if (enEdicion(); as movimiento) {
+    <div class="modal-fondo" (click)="cerrarModales()">
+      <article class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header class="modal__encabezado">
+          <h2>Editar registro</h2>
+          <button type="button" class="modal__cerrar" (click)="cerrarModales()" aria-label="Cerrar">×</button>
+        </header>
+        <form class="modal__cuerpo" [formGroup]="formularioEdicion" (ngSubmit)="confirmarEdicion()" novalidate>
+          <div class="campo">
+            <label for="editar-tipo">Tipo de movimiento</label>
+            <select id="editar-tipo" formControlName="tipo">
+              <option value="INGRESO">Ingreso</option>
+              <option value="EGRESO">Egreso</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="editar-descripcion">Descripción</label>
+            <input id="editar-descripcion" type="text" formControlName="descripcion" maxlength="150" />
+            @if (formularioEdicion.get('descripcion')?.invalid && formularioEdicion.get('descripcion')?.touched) {
+              <span class="campo__error">La descripción es obligatoria (máx. 150 caracteres).</span>
+            }
+          </div>
+
+          <div class="campo__fila">
+            <div class="campo">
+              <label for="editar-monto">Monto (Q)</label>
+              <input id="editar-monto" type="number" min="0.01" step="0.01" formControlName="monto" />
+              @if (formularioEdicion.get('monto')?.invalid && formularioEdicion.get('monto')?.touched) {
+                <span class="campo__error">El monto debe ser mayor a cero.</span>
+              }
+            </div>
+            <div class="campo">
+              <label for="editar-fecha">Fecha</label>
+              <input id="editar-fecha" type="date" formControlName="fecha" />
+              @if (formularioEdicion.get('fecha')?.invalid && formularioEdicion.get('fecha')?.touched) {
+                <span class="campo__error">Seleccione una fecha válida.</span>
+              }
+            </div>
+          </div>
+
+          <div class="campo">
+            <label for="editar-categoria">Categoría</label>
+            <select id="editar-categoria" formControlName="categoria">
+              @for (categoria of categoriasEdicion; track categoria.valor) {
+                <option [value]="categoria.valor">{{ categoria.etiqueta }}</option>
+              }
+            </select>
+          </div>
+
+          <footer class="modal__acciones">
+            <button type="button" class="boton boton--secundario" (click)="cerrarModales()">Cancelar</button>
+            <button type="submit" class="boton boton--primario" [disabled]="guardando()">
+              {{ guardando() ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+          </footer>
+        </form>
+      </article>
+    </div>
+  }
+
+  @if (enEliminacion(); as movimiento) {
+    <div class="modal-fondo" (click)="cerrarModales()">
+      <article class="modal modal--confirmacion" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header class="modal__encabezado">
+          <h2>Eliminar registro</h2>
+          <button type="button" class="modal__cerrar" (click)="cerrarModales()" aria-label="Cerrar">×</button>
+        </header>
+        <div class="modal__cuerpo">
+          <p class="modal__texto">
+            ¿Está seguro que desea eliminar el registro
+            <strong>"{{ movimiento.descripcion }}"</strong> por
+            <strong>{{ formatearMonto(movimiento.monto) }}</strong>?
+            Esta acción no se puede deshacer.
+          </p>
+          <footer class="modal__acciones">
+            <button type="button" class="boton boton--secundario" (click)="cerrarModales()">Cancelar</button>
+            <button type="button" class="boton boton--peligro" [disabled]="guardando()" (click)="confirmarEliminacion()">
+              {{ guardando() ? 'Eliminando...' : 'Sí, eliminar' }}
+            </button>
+          </footer>
+        </div>
+      </article>
+    </div>
+  }
+</div>

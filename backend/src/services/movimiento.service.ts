@@ -109,6 +109,22 @@ function aMovimientoPublico(movimiento: {
 }
 
 export const movimientoService = {
+        async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
+        validarMovimiento(datos);
+        const actualizado = await movimientoRepository.actualizar(usuarioId, id, datos);
+        if (!actualizado) {
+            throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
+        }
+        return aMovimientoPublico(actualizado);
+    },
+
+    async eliminar(usuarioId: number, id: number): Promise<void> {
+        const eliminado = await movimientoRepository.eliminar(usuarioId, id);
+        if (!eliminado) {
+            throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
+        }
+    },
+
     categorias(tipo: TipoMovimiento): string[] {
         return categoriasPorTipo(tipo);
     },
