@@ -13,8 +13,6 @@ export class MovimientoService {
         return this.http.get<{ movimientos: MovimientoPublico[] }>(`${API_BASE_URL}/movimientos`);
     }
 
-    // Guarda de una sola vez todas las filas que el usuario fue
-    // acumulando en la "Vista Previa del Registro".
     guardarLote(movimientos: CrearMovimientoRequest[]): Observable<{ movimientos: MovimientoPublico[] }> {
         return this.http.post<{ movimientos: MovimientoPublico[] }>(`${API_BASE_URL}/movimientos/lote`, {
             movimientos,
@@ -23,5 +21,13 @@ export class MovimientoService {
 
     obtenerResumen(): Observable<ResumenFinanciero> {
         return this.http.get<ResumenFinanciero>(`${API_BASE_URL}/movimientos/resumen`);
+    }
+
+    actualizar(id: number, datos: CrearMovimientoRequest): Observable<MovimientoPublico> {
+        return this.http.put<MovimientoPublico>(`${API_BASE_URL}/movimientos/${id}`, datos);
+    }
+
+    eliminar(id: number): Observable<void> {
+        return this.http.delete<void>(`${API_BASE_URL}/movimientos/${id}`);
     }
 }
