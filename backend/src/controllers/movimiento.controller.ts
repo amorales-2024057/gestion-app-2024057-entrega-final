@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { movimientoService } from '../services/movimiento.service';
 import { RequestAutenticado } from '../middlewares/auth.middleware';
 import { ApiError } from '../utils/api-error';
+import { TipoMovimiento } from '../models/movimiento.model';
 
 function requerirUsuario(req: RequestAutenticado): number {
     if (!req.usuario) {
@@ -11,8 +12,9 @@ function requerirUsuario(req: RequestAutenticado): number {
 }
 
 export const movimientoController = {
-    async categorias(_req: RequestAutenticado, res: Response): Promise<void> {
-        res.status(200).json({ categorias: movimientoService.categorias() });
+    async categorias(req: RequestAutenticado, res: Response): Promise<void> {
+        const tipo = (req.query.tipo === 'EGRESO' ? 'EGRESO' : 'INGRESO') as TipoMovimiento;
+        res.status(200).json({ categorias: movimientoService.categorias(tipo) });
     },
 
     async crear(req: RequestAutenticado, res: Response): Promise<void> {
