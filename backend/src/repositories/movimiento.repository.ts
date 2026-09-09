@@ -19,6 +19,25 @@ interface TotalPorMes {
 }
 
 export const movimientoRepository = {
+        async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<Movimiento | null> {
+        const resultado = await pool.query<Movimiento>(
+            `UPDATE movimientos
+             SET tipo = $3, descripcion = $4, monto = $5, categoria = $6, fecha = $7
+             WHERE id = $1 AND usuario_id = $2
+             RETURNING *`,
+            [id, usuarioId, datos.tipo, datos.descripcion, datos.monto, datos.categoria, datos.fecha]
+        );
+        return resultado.rows[0] ?? null;
+    },
+
+    async eliminar(usuarioId: number, id: number): Promise<boolean> {
+        const resultado = await pool.query(
+            `DELETE FROM movimientos WHERE id = $1 AND usuario_id = $2`,
+            [id, usuarioId]
+        );
+        return (resultado.rowCount ?? 0) > 0;
+    },
+    
     async crear(usuarioId: number, datos: CrearMovimientoRequest): Promise<Movimiento> {
         const resultado = await pool.query<Movimiento>(
             `INSERT INTO movimientos (usuario_id, tipo, descripcion, monto, categoria, fecha)
