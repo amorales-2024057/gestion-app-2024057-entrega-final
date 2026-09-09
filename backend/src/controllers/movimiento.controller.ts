@@ -11,6 +11,14 @@ function requerirUsuario(req: RequestAutenticado): number {
     return req.usuario.id;
 }
 
+function requerirId(req: RequestAutenticado): number {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        throw new ApiError(400, 'El identificador del movimiento no es válido.');
+    }
+    return id;
+}
+
 export const movimientoController = {
     async categorias(req: RequestAutenticado, res: Response): Promise<void> {
         const tipo = (req.query.tipo === 'EGRESO' ? 'EGRESO' : 'INGRESO') as TipoMovimiento;
@@ -39,5 +47,19 @@ export const movimientoController = {
         const usuarioId = requerirUsuario(req);
         const resumen = await movimientoService.obtenerResumen(usuarioId);
         res.status(200).json(resumen);
+    },
+
+    async actualizar(req: RequestAutenticado, res: Response): Promise<void> {
+        const usuarioId = requerirUsuario(req);
+        const id = requerirId(req);
+        const movimiento = await movimientoService.actualizar(usuarioId, id, req.body);
+        res.status(200).json(movimiento);
+    },
+
+    async eliminar(req: RequestAutenticado, res: Response): Promise<void> {
+        const usuarioId = requerirUsuario(req);
+        const id = requerirId(req);
+        await movimientoService.eliminar(usuarioId, id);
+        res.status(204).send();
     },
 };
