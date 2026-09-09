@@ -37,3 +37,21 @@ body {
 button {
   font-family: inherit;
 }
+
+@keyframes vista-desaparece {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+@keyframes vista-aparece {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::view-transition-old(root) {
+  animation: vista-desaparece 0.22s ease both;
+}
+
+::view-transition-new(root) {
+  animation: vista-aparece 0.28s ease both;
+}

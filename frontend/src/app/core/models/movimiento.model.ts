@@ -17,16 +17,10 @@ export interface CrearMovimientoRequest {
     fecha: string;
 }
 
-// Fila que se muestra en la "Vista Previa del Registro" mientras el
-// usuario todavia no ha dado clic en "Confirmar y guardar registro".
-// Lleva un id local (temporal, solo del navegador) para poder
-// identificarla en la lista y poder quitarla antes de guardar.
 export interface MovimientoEnVistaPrevia extends CrearMovimientoRequest {
     idLocal: string;
 }
 
-// Catalogo de categorias de ingreso que ofrece el select del formulario,
-// junto con la etiqueta que se muestra en pantalla.
 export interface CategoriaIngreso {
     valor: string;
     etiqueta: string;
@@ -44,3 +38,20 @@ export const CATEGORIAS_INGRESO: CategoriaIngreso[] = [
     { valor: 'INVERSION', etiqueta: 'Inversión' },
     { valor: 'OTRO', etiqueta: 'Otro' },
 ];
+
+export const CATEGORIAS_EGRESO: CategoriaIngreso[] = [
+    { valor: 'ALIMENTACION', etiqueta: 'Alimentación' },
+    { valor: 'TRANSPORTE', etiqueta: 'Transporte' },
+    { valor: 'VIVIENDA', etiqueta: 'Vivienda / Renta' },
+    { valor: 'SERVICIOS_BASICOS', etiqueta: 'Servicios básicos' },
+    { valor: 'SALUD', etiqueta: 'Salud' },
+    { valor: 'EDUCACION', etiqueta: 'Educación' },
+    { valor: 'ENTRETENIMIENTO', etiqueta: 'Entretenimiento' },
+    { valor: 'ROPA', etiqueta: 'Ropa y calzado' },
+    { valor: 'DEUDAS', etiqueta: 'Deudas y préstamos' },
+    { valor: 'OTRO', etiqueta: 'Otro' },
+];
+
+export function categoriasPorTipo(tipo: TipoMovimiento): CategoriaIngreso[] {
+    return tipo === 'EGRESO' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
+}
