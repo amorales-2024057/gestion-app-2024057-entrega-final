@@ -22,9 +22,26 @@ const CATEGORIAS_INGRESO = [
     'OTRO',
 ];
 
+const CATEGORIAS_EGRESO = [
+    'ALIMENTACION',
+    'TRANSPORTE',
+    'VIVIENDA',
+    'SERVICIOS_BASICOS',
+    'SALUD',
+    'EDUCACION',
+    'ENTRETENIMIENTO',
+    'ROPA',
+    'DEUDAS',
+    'OTRO',
+];
+
 const NOMBRES_MESES = [
     'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 ];
+
+function categoriasPorTipo(tipo: TipoMovimiento): string[] {
+    return tipo === 'EGRESO' ? CATEGORIAS_EGRESO : CATEGORIAS_INGRESO;
+}
 
 function formatearMoneda(valor: number): string {
     const signo = valor < 0 ? '-' : '';
@@ -45,11 +62,8 @@ function formatearDelta(actual: number, anterior: number): string {
 }
 
 function validarMovimiento(datos: CrearMovimientoRequest): void {
-    if (datos.tipo !== 'INGRESO') {
-        throw new ApiError(
-            400,
-            'Por el momento solo se pueden registrar ingresos. Los egresos estarán disponibles en una próxima entrega.'
-        );
+    if (datos.tipo !== 'INGRESO' && datos.tipo !== 'EGRESO') {
+        throw new ApiError(400, 'El tipo de movimiento debe ser INGRESO o EGRESO.');
     }
 
     if (!datos.descripcion?.trim()) {
@@ -64,8 +78,8 @@ function validarMovimiento(datos: CrearMovimientoRequest): void {
         throw new ApiError(400, 'El monto debe ser un número mayor a cero.');
     }
 
-    if (!datos.categoria || !CATEGORIAS_INGRESO.includes(datos.categoria)) {
-        throw new ApiError(400, 'La categoría seleccionada no es válida.');
+    if (!datos.categoria || !categoriasPorTipo(datos.tipo).includes(datos.categoria)) {
+        throw new ApiError(400, 'La categoría seleccionada no es válida para ese tipo de movimiento.');
     }
 
     if (!datos.fecha || Number.isNaN(Date.parse(datos.fecha))) {
@@ -95,8 +109,8 @@ function aMovimientoPublico(movimiento: {
 }
 
 export const movimientoService = {
-    categorias(): string[] {
-        return CATEGORIAS_INGRESO;
+    categorias(tipo: TipoMovimiento): string[] {
+        return categoriasPorTipo(tipo);
     },
 
     async crear(usuarioId: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
