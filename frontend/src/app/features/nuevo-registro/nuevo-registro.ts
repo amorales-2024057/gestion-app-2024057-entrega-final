@@ -5,12 +5,11 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { MovimientoService } from '../../core/services/movimiento.service';
 import {
-    CATEGORIAS_INGRESO,
+    categoriasPorTipo,
     MovimientoEnVistaPrevia,
+    TipoMovimiento,
 } from '../../core/models/movimiento.model';
 
-// Formatea un numero como quetzales, igual que las tarjetas del
-// dashboard (Q4,500.00).
 function formatearMoneda(valor: number): string {
     return `Q${valor.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -33,15 +32,17 @@ export class NuevoRegistro {
     private readonly router = inject(Router);
 
     protected readonly usuario = this.authService.usuario;
-    protected readonly categorias = CATEGORIAS_INGRESO;
 
-    // Filas que el usuario ha ido agregando con "+ Agregar a la lista"
-    // pero que todavia no se han guardado en la base de datos. Esto es
-    // exactamente la "Vista Previa del Registro" del maquetado.
+    protected readonly tipoSeleccionado = signal<TipoMovimiento>('INGRESO');
+    protected readonly categorias = computed(() => categoriasPorTipo(this.tipoSeleccionado()));
+
     protected readonly vistaPrevia = signal<MovimientoEnVistaPrevia[]>([]);
 
     protected readonly balanceARegistrar = computed(() =>
-        this.vistaPrevia().reduce((total, fila) => total + fila.monto, 0)
+        this.vistaPrevia().reduce(
+            (total, fila) => total + (fila.tipo === 'EGRESO' ? -fila.monto : fila.monto),
+            0
+        )
     );
     protected readonly balanceARegistrarTexto = computed(() =>
         formatearMoneda(this.balanceARegistrar())
@@ -51,10 +52,6 @@ export class NuevoRegistro {
     protected readonly mensajeError = signal<string | null>(null);
     protected readonly mensajeExito = signal<string | null>(null);
 
-    // Se activa cuando la persona presiona el lado "EGRESO" del toggle,
-    // para explicarle por qué esa opción no hace nada todavía.
-    protected readonly avisoEgresoVisible = signal(false);
-
     protected readonly formulario = this.fb.group({
         descripcion: ['', [Validators.required, Validators.maxLength(150)]],
         monto: [null as number | null, [Validators.required, Validators.min(0.01)]],
@@ -62,21 +59,22 @@ export class NuevoRegistro {
         categoria: ['', [Validators.required]],
     });
 
-    protected mostrarAvisoEgreso(): void {
-        this.avisoEgresoVisible.set(true);
+    protected seleccionarTipo(tipo: TipoMovimiento): void {
+        if (this.tipoSeleccionado() === tipo) {
+            return;
+        }
+        this.tipoSeleccionado.set(tipo);
+        this.formulario.patchValue({ categoria: '' });
     }
 
-    protected etiquetaCategoria(valor: string): string {
-        return this.categorias.find((categoria) => categoria.valor === valor)?.etiqueta ?? valor;
+    protected etiquetaCategoria(tipo: TipoMovimiento, valor: string): string {
+        return categoriasPorTipo(tipo).find((categoria) => categoria.valor === valor)?.etiqueta ?? valor;
     }
 
     protected formatearMonto(valor: number): string {
         return formatearMoneda(valor);
     }
 
-    // Agrega la fila del formulario a la vista previa (todavia no la
-    // guarda en el backend). Limpia el formulario para que sea comodo
-    // seguir cargando varios ingresos seguidos, como en el maquetado.
     protected agregarALaLista(): void {
         if (this.formulario.invalid) {
             this.formulario.markAllAsTouched();
@@ -93,7 +91,7 @@ export class NuevoRegistro {
                 typeof crypto !== 'undefined' && 'randomUUID' in crypto
                     ? crypto.randomUUID()
                     : `${Date.now()}-${Math.random()}`,
-            tipo: 'INGRESO',
+            tipo: this.tipoSeleccionado(),
             descripcion: (descripcion ?? '').trim(),
             monto: Number(monto),
             categoria: categoria ?? '',
@@ -114,10 +112,6 @@ export class NuevoRegistro {
         this.vistaPrevia.update((filas) => filas.filter((fila) => fila.idLocal !== idLocal));
     }
 
-    // Manda toda la vista previa al backend de una sola vez
-    // (POST /api/movimientos/lote) para que quede guardada en la tabla
-    // "movimientos". Al terminar, limpia la lista y avisa que ya puede
-    // ir al dashboard a ver los totales actualizados.
     protected confirmarYGuardar(): void {
         if (this.guardando() || this.vistaPrevia().length === 0) {
             return;

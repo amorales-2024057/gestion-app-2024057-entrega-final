@@ -39,24 +39,30 @@
           <span class="tipo-movimiento__etiqueta">TIPO DE MOVIMIENTO:</span>
 
           <div class="toggle-tipo" role="group" aria-label="Tipo de movimiento">
-            <button type="button" class="toggle-tipo__opcion toggle-tipo__opcion--activa" aria-pressed="true">
+            <span
+              class="toggle-tipo__realce"
+              [class.toggle-tipo__realce--egreso]="tipoSeleccionado() === 'EGRESO'"
+              aria-hidden="true"
+            ></span>
+            <button
+              type="button"
+              class="toggle-tipo__opcion"
+              [class.toggle-tipo__opcion--activa]="tipoSeleccionado() === 'INGRESO'"
+              [attr.aria-pressed]="tipoSeleccionado() === 'INGRESO'"
+              (click)="seleccionarTipo('INGRESO')"
+            >
               INGRESO
             </button>
             <button
               type="button"
               class="toggle-tipo__opcion"
-              aria-pressed="false"
-              (click)="mostrarAvisoEgreso()"
+              [class.toggle-tipo__opcion--activa]="tipoSeleccionado() === 'EGRESO'"
+              [attr.aria-pressed]="tipoSeleccionado() === 'EGRESO'"
+              (click)="seleccionarTipo('EGRESO')"
             >
               EGRESO
             </button>
           </div>
-
-          @if (avisoEgresoVisible()) {
-            <p class="tipo-movimiento__nota">
-              Por el momento solo puede registrar ingresos. El registro de egresos estará disponible en una próxima entrega.
-            </p>
-          }
         </div>
 
         <form [formGroup]="formulario" (ngSubmit)="agregarALaLista()" class="formulario" novalidate>
@@ -101,7 +107,7 @@
             <label for="categoria">Categoría:</label>
             <select id="categoria" formControlName="categoria">
               <option value="" disabled>Seleccionar Categoría</option>
-              @for (categoria of categorias; track categoria.valor) {
+              @for (categoria of categorias(); track categoria.valor) {
                 <option [value]="categoria.valor">{{ categoria.etiqueta }}</option>
               }
             </select>
@@ -125,24 +131,32 @@
         <div class="lista-previa">
           @if (vistaPrevia().length === 0) {
             <div class="lista-previa__vacio">
-              <span>Aún no ha agregado ingresos a la lista.</span>
+              <span>Aún no ha agregado movimientos a la lista.</span>
               <span class="lista-previa__vacio-sub">Utilice el formulario de la izquierda para comenzar.</span>
             </div>
           } @else {
             @for (fila of vistaPrevia(); track fila.idLocal) {
-              <div class="fila-previa">
-                <span class="fila-previa__icono" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+              <div class="fila-previa" [class.fila-previa--egreso]="fila.tipo === 'EGRESO'">
+                <span class="fila-previa__icono" [class.fila-previa__icono--egreso]="fila.tipo === 'EGRESO'" aria-hidden="true">
+                  @if (fila.tipo === 'EGRESO') {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 5v14M12 19l-6-6M12 19l6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  } @else {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  }
                 </span>
 
                 <div class="fila-previa__info">
                   <strong>{{ fila.descripcion }}</strong>
-                  <span>INGRESO * {{ etiquetaCategoria(fila.categoria) }}</span>
+                  <span>{{ fila.tipo }} · {{ etiquetaCategoria(fila.tipo, fila.categoria) }}</span>
                 </div>
 
-                <span class="fila-previa__monto">+ {{ formatearMonto(fila.monto) }}</span>
+                <span class="fila-previa__monto" [class.fila-previa__monto--egreso]="fila.tipo === 'EGRESO'">
+                  {{ fila.tipo === 'EGRESO' ? '−' : '+' }} {{ formatearMonto(fila.monto) }}
+                </span>
 
                 <button
                   type="button"
