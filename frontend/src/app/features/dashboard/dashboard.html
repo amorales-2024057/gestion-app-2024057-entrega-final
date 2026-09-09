@@ -12,7 +12,7 @@
 
       <nav class="navlinks">
         <span class="navlink navlink--activo">Dashboard</span>
-        <span class="navlink navlink--pendiente" title="Disponible en una proxima entrega">Registros</span>
+        <a routerLink="/registros" class="navlink navlink--enlace">Registros</a>
         <a routerLink="/nuevo-registro" class="navlink navlink--enlace">Nuevo Registro</a>
         <button type="button" class="navlink navlink--boton" (click)="cerrarSesion()">Cerrar sesion</button>
       </nav>
