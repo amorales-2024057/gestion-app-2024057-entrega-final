@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { MovimientoService } from '../../../core/services/movimiento.service';
+import { MovimientoService } from '../../../core/service/movimiento.service';
 import {
     CategoriaIngreso,
     CrearMovimientoRequest,
