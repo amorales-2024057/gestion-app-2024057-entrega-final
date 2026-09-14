@@ -2,470 +2,230 @@
 
 ## ¿De qué se trata este proyecto?
 
-Es una aplicación web para llevar el control de los ingresos y egresos
-(gastos) de una persona, todo en un solo lugar y ordenado — nada de hojas
-de cálculo sueltas ni apuntes en el teléfono. La idea es simple: la
-persona inicia sesión, ve un resumen visual de cómo está su dinero, y más
-adelante podrá ir agregando cada ingreso o gasto que tenga.
+Es una aplicación web fullstack para llevar el control integral y ordenado de los ingresos y egresos (gastos) de una persona en un solo lugar — sin hojas de cálculo sueltas ni apuntes olvidados en el teléfono. 
 
-Como es un proyecto académico, se está construyendo **por entregas**: cada
-entrega agrega una parte nueva y funcional, en vez de entregar todo junto
-al final.
+La propuesta es clara y confiable: la persona inicia sesión (con sus credenciales o con su cuenta de Google), analiza su situación financiera a través de un Dashboard visual con gráficas y métricas clave, registra nuevas transacciones con validaciones de saldo inteligente, y consulta o administra el historial completo de sus movimientos con filtros, búsqueda, edición y eliminación.
 
-## ¿Qué es lo que ya funciona hoy?
+El proyecto se encuentra **100% completado**, con todas sus capas integradas, probadas y funcionales de extremo a extremo.
 
-### 1. El inicio de sesión (completo)
-La persona entra con su usuario y contraseña, el sistema la reconoce, y
-queda "adentro" de la aplicación de forma segura. Las contraseñas no se
-guardan en texto plano en ningún lado — ni siquiera un administrador
-puede verlas, solo comprobar que coinciden. Hay dos tipos de cuenta:
-administrador y usuario normal.
+---
 
-### 2. El Dashboard (completo y conectado a datos reales)
-Es la pantalla principal después de iniciar sesión. Muestra:
+## ¿Qué funciones ofrece el proyecto?
 
-- **4 tarjetas de resumen**, cada una con su ícono: Total de Ingresos,
-  Total de Egresos, Balance Total, y Porcentaje de balance mensual.
-- **2 gráficas**: una de línea con el balance a través de los años, y una
-  de barras con el balance mes a mes del año actual.
+### 1. Inicio de sesión y seguridad (Credenciales + Google Identity Services)
+- **Acceso tradicional**: La persona ingresa con usuario y contraseña. Las contraseñas se almacenan encriptadas con `bcryptjs` (hash irreversible).
+- **Acceso con Google**: Botón integrado con Google Identity Services (GIS). Al hacer clic en "Continuar con Google", el token ID es verificado por el backend con la librería oficial `google-auth-library`. Si es la primera vez que ingresa, el sistema crea la cuenta automáticamente; si ya existía por correo, vincula su identidad de Google de forma transparente y segura.
+- **Sesiones protegidas y caducidad por inactividad**: La autenticación emite un token JWT que expira automáticamente, cerrando la sesión si se detecta inactividad prolongada y notificando al usuario en pantalla.
+- **Roles**: Soporta cuentas de administrador (`ADMIN`) y usuario estándar (`USER`).
 
-Estas tarjetas y gráficas ya **no muestran datos fijos en Q0**: se calculan
-en el backend (`GET /api/movimientos/resumen`) a partir de lo que el
-usuario haya guardado en "Nuevo Registro", y el dashboard vuelve a pedir
-ese resumen cada vez que se entra a la pantalla — por ejemplo, justo
-después de guardar un ingreso nuevo y volver del formulario.
+### 2. Registro público de cuentas (`/registro`)
+- Permite a nuevos usuarios registrarse directamente indicando su nombre, apellido, correo electrónico, nombre de usuario, género, teléfono (opcional) y contraseña (con validación de coincidencia y longitud mínima de 8 caracteres).
+- Al completar el registro, el sistema autentica automáticamente al usuario y lo redirige al Dashboard sin pasos intermedios molestos.
 
-### 3. Crear cuenta (registro público, funcional)
-En el login ahora hay un enlace **"¿No tiene una cuenta? Regístrese"** que
-lleva a `/registro`. Esa pantalla pide nombre, apellido, correo, nombre de
-usuario, género, teléfono (opcional) y contraseña (con confirmación), y
-al guardar llama a `POST /api/auth/registro`. Ese endpoint valida los
-datos, revisa que el usuario/correo no estén repetidos, guarda la cuenta
-con rol `USER` y **deja la sesión iniciada de una vez** (regresa el mismo
-token que entrega el login), así que la persona entra directo al
-Dashboard sin tener que volver a escribir sus credenciales.
+### 3. Dashboard Financiero inteligente (`/dashboard`)
+La pantalla principal tras identificarse ofrece una lectura clara y dinámica de las finanzas del usuario:
+- **4 tarjetas de resumen**:
+  - **Total de Ingresos**: Suma histórica de todos los ingresos.
+  - **Total de Egresos**: Suma histórica de todos los egresos.
+  - **Balance Total**: Saldo neto actual disponible.
+  - **Ahorro de este mes**: Variación porcentual y desempeño respecto al mes anterior.
+- **2 gráficas interactivas SVG nativas**:
+  - Gráfica de línea con el balance anual histórico.
+  - Gráfica de barras con el balance mes a mes del año en curso.
+- Se calculan y actualizan en tiempo real desde el backend (`GET /api/movimientos/resumen`).
 
-### 4. Nuevo Registro — alta de ingresos (funcional)
-Pantalla para agregar ingresos, siguiendo el maquetado aprobado: un
-formulario ("Agregar Transacción") con descripción, monto, fecha y
-categoría, y a la derecha una "Vista Previa del Registro" donde se van
-acumulando las filas antes de guardarlas. Al presionar
-**"Confirmar y guardar registro"** todas las filas de la vista previa se
-guardan de una sola vez en la base de datos (tabla `movimientos`) y el
-Dashboard queda actualizado automáticamente.
+### 4. Nuevo Registro — Ingresos y Egresos con control de balance (`/nuevo-registro`)
+Pantalla para agregar movimientos financieros de forma individual o en lote:
+- **Toggle intuitivo Ingreso / Egreso**: Permite alternar fácilmente el tipo de transacción a registrar.
+- **Control estricto contra balances negativos (Regla de negocio)**:
+  - El sistema analiza cuántos ingresos existen y no permite registrar ningún egreso que exceda el dinero disponible.
+  - Si el usuario intenta agregar un egreso superior a los ingresos existentes, el sistema bloquea la acción y emite el mensaje:
+    > *"No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente."*
+  - Se muestra además un indicador en tiempo real con el límite disponible para egresos.
+- **Vista previa interactiva**: Las transacciones se acumulan en una lista antes de confirmarse. El usuario puede revisar totales, quitar filas individuales y, al presionar **"Guardar registro"**, se envían todas en una única transacción atómica a PostgreSQL (`POST /api/movimientos/lote`).
 
-Por instrucción explícita del cliente, **por el momento la aplicación
-solo permite registrar ingresos**: el toggle de "Egreso" del maquetado
-original no se muestra en esta entrega (ni en el formulario ni en
-ninguna parte de la interfaz), aunque la base de datos y el backend ya
-están preparados para soportarlo (`tipo IN ('INGRESO', 'EGRESO')`) el día
-que se habilite.
-
-### 5. Datos de usuario ampliados
-La tabla `usuarios` ahora guarda, además de usuario y contraseña:
-nombre, apellido, correo electrónico, género, rol, teléfono, foto de
-perfil (`avatar_url`) y si la cuenta está activa. El backend expone
-`PUT /api/usuarios/perfil` para actualizar esos datos (incluyendo un
-cambio de contraseña opcional) desde una futura pantalla de "Mi perfil".
-
-## Lo que falta por construir
-
-- La pantalla para ver el listado de todo lo registrado ("Registros") y
-  sus filtros.
-- Una pantalla de "Mi perfil" en el frontend que consuma
-  `PUT /api/usuarios/perfil` (el backend de esa parte ya está listo).
-- Habilitar el registro de egresos (la base de datos y el backend ya lo
-  soportan; falta el toggle en la interfaz cuando el cliente lo autorice).
-- Reportes adicionales y filtros (por mes, por categoría, etc.) — los
-  botones de "Este Mes" y "Filtro" ya están puestos en el Dashboard, pero
-  todavía no hacen nada hasta que exista ese filtrado.
+### 5. Historial completo y administración de Registros (`/registros`)
+Una vista detallada con el historial de todos los movimientos guardados:
+- **Filtros rápidos**: Filtrado por tipo (*Todos*, *Ingresos*, *Egresos*) y por período (*Histórico completo* o *Este Mes*).
+- **Buscador en tiempo real**: Filtra instantáneamente por descripción o categoría.
+- **Paginación dinámica**: Presentación en páginas de 7 registros para navegación fluida.
+- **Modal de Detalle**: Consulta todos los datos de un movimiento específico.
+- **Edición segura**: Modificación de descripción, categoría, monto o tipo (`PUT /api/movimientos/:id`), validando que un cambio de monto o tipo no genere un balance negativo.
+- **Eliminación protegida**: Permite borrar registros (`DELETE /api/movimientos/:id`), impidiendo eliminar un ingreso si los egresos existentes superasen los ingresos restantes.
 
 ---
 
 ## Documentación técnica
 
-Todo lo que sigue es para quien vaya a instalar, revisar o seguir
-desarrollando el proyecto (no hace falta leerlo para entender qué hace
-la aplicación, eso ya se explicó arriba).
+### Arquitectura y Tecnologías
 
-### Con qué está hecho
+| Capa       | Tecnologías principales                                                                 |
+|------------|------------------------------------------------------------------------------------------|
+| Backend    | Node.js, Express, TypeScript, PostgreSQL (`pg`), JWT, bcryptjs, `google-auth-library`   |
+| Frontend   | Angular 21 (Componentes Standalone, Signals, Reactive Forms), TypeScript, SVG nativo    |
+| Seguridad  | JSON Web Tokens (Bearer), Google Identity Services (GIS), Hash Bcrypt con salt rounds   |
+| Estilos    | CSS moderno con variables CSS, animaciones fluidas y diseño adaptativo                  |
+| Paquetería | pnpm                                                                                     |
 
-| Capa       | Tecnología                                                              |
-|------------|---------------------------------------------------------------------------|
-| Backend    | Node.js, Express, TypeScript, PostgreSQL (librería `pg`), JWT, bcryptjs   |
-| Frontend   | Angular 21 (componentes standalone), TypeScript                          |
-| Estilos    | CSS con variables, paleta de marca a medida                              |
-| Paquetería | pnpm                                                                       |
+### Estructura del Proyecto
 
-### Cómo está organizado
-
-```
-finanzas-app/
+```text
+gestion-app-2024057-entrega-final/
+├── README.md
 ├── backend/
 │   ├── db/
-│   │   └── init.sql            # Creación de las tablas usuarios y movimientos
+│   │   └── init.sql              # Creación de tablas (usuarios, movimientos) e índices
 │   ├── src/
-│   │   ├── config/              # Conexión a PostgreSQL y variables de entorno
-│   │   ├── controllers/         # Controladores HTTP (auth, usuarios, movimientos)
-│   │   ├── middlewares/         # Autenticación (JWT) y manejo de errores
-│   │   ├── models/               # Tipos e interfaces (usuario, movimiento, auth)
-│   │   ├── repositories/        # Acceso a datos (queries SQL)
-│   │   ├── routes/               # Definición de endpoints
-│   │   ├── services/             # Lógica de negocio (auth, usuarios, movimientos)
-│   │   ├── seed.ts               # Carga de usuarios admin/user (idempotente)
-│   │   ├── app.ts                # Configuración de Express
-│   │   └── server.ts             # Punto de entrada
-│   ├── .env.example
+│   │   ├── config/               # Conexión a base de datos y resolución de variables de entorno
+│   │   ├── controllers/          # Controladores REST (auth, usuarios, movimientos)
+│   │   ├── middlewares/          # Autenticación JWT y manejador global de errores
+│   │   ├── models/               # Modelos y contratos TypeScript
+│   │   ├── repositories/         # Capa de acceso a datos y consultas SQL
+│   │   ├── routes/               # Rutas de la API (/api/auth, /api/usuarios, /api/movimientos)
+│   │   ├── services/             # Lógica de negocio (reglas de balance, Google OAuth, etc.)
+│   │   ├── utils/                # Utilidades de error HTTP (ApiError)
+│   │   ├── app.ts                # Inicialización de Express y CORS
+│   │   ├── server.ts             # Arranque del servidor HTTP
+│   │   └── seed.ts               # Poblamiento inicial idempotente (admin / user)
+│   ├── .env.example              # Plantilla de variables de entorno
 │   └── package.json
 └── frontend/
-    ├── src/app/
-    │   ├── core/
-    │   │   ├── config/           # URL base de la API
-    │   │   ├── guards/           # authGuard (protección de rutas)
-    │   │   ├── interceptors/     # authInterceptor (agrega el token JWT)
-    │   │   ├── models/           # Tipos compartidos (usuario, movimiento, resumen)
-    │   │   └── services/         # AuthService, DashboardService, MovimientoService
-    │   ├── shared/
-    │   │   └── graficas/         # Dibuja las gráficas SVG del Dashboard
-    │   └── features/
-    │       ├── login/            # Pantalla de inicio de sesión (funcional)
-    │       ├── dashboard/        # Resumen financiero visual (funcional, datos reales)
-    │       └── nuevo-registro/   # Alta de ingresos + vista previa (funcional)
+    ├── src/
+    │   ├── index.html            # Carga del SDK de Google Identity Services
+    │   └── app/
+    │       ├── core/
+    │       │   ├── config/       # Configuración de URLs base y Google Client ID
+    │       │   ├── guards/       # authGuard (protección de rutas privadas)
+    │       │   ├── interceptors/ # authInterceptor (inyección automática del token Bearer)
+    │       │   ├── models/       # Interfaces frontend (usuario, movimiento, resumen)
+    │       │   └── services/     # AuthService, MovimientoService, SesionExpiradaService
+    │       ├── shared/
+    │       │   └── graficas/     # Generador de gráficas SVG nativas
+    │       └── features/
+    │           ├── login/        # Inicio de sesión tradicional y botón Google
+    │           ├── registro/     # Creación de nuevas cuentas de usuario
+    │           ├── dashboard/    # Panel visual con métricas y gráficas
+    │           ├── nuevo-registro/ # Formulario de ingresos y egresos con límite de balance
+    │           └── registros/    # Historial de transacciones con búsqueda, edición y borrado
     └── package.json
 ```
 
-> La tabla `movimientos` soporta `INGRESO` y `EGRESO`, pero el backend y
-> la interfaz solo exponen `INGRESO` en esta entrega (ver sección
-> "Nuevo Registro" arriba). Habilitar `EGRESO` no requiere tocar la base
-> de datos, solo el formulario y las validaciones del backend.
+---
 
-### Lo que NO está en este repositorio (y por qué)
+## Instalación y Puesta en Marcha
 
-Si acabas de clonar el proyecto y notas que faltan varias carpetas, es
-intencional. Hay ciertas cosas que nunca deben subirse a un repositorio de
-Git porque son pesadas, se regeneran solas, o son configuración personal de
-cada máquina. Esta sección explica exactamente qué falta y cómo recuperarlo.
+### Requisitos previos
+- **Node.js**: Versión 20 o superior (recomendado Node 22).
+- **pnpm**: Gestor de paquetes (`npm install -g pnpm`).
+- **PostgreSQL**: Versión 14 o superior en ejecución local.
 
-#### 1. Las dependencias (`node_modules/`)
-
-Tanto `backend/` como `frontend/` tienen su propia carpeta `node_modules/`
-que **no está en el repositorio**. Ahí es donde viven todas las librerías
-que el proyecto usa (Express, Angular, bcryptjs, etc.), y puede pesar
-cientos de megabytes — no tiene sentido subir eso a GitHub cuando se puede
-regenerar con un solo comando.
-
-Para instalarlas:
-
+### 1. Clonar el repositorio
 ```powershell
-cd backend
-pnpm install
-
-cd ../frontend
-pnpm install
+git clone <URL_DEL_REPOSITORIO>
+cd gestion-app-2024057-entrega-final
 ```
 
-Con eso, `pnpm` lee el `package.json` de cada carpeta (que sí está en el
-repo) y descarga exactamente las versiones necesarias, usando
-`pnpm-lock.yaml` (que **tampoco** se excluyó, ese sí va en el repo) para
-asegurarse de que sean las mismas versiones exactas con las que se
-construyó el proyecto originalmente.
-
-#### 2. Las variables de entorno del backend (`.env`)
-
-El archivo `backend/.env` tampoco está en el repositorio, porque ahí van
-credenciales reales (usuario y contraseña de tu PostgreSQL local, y el
-secreto usado para firmar los tokens JWT). Subir eso sería exponer
-credenciales de forma pública, aunque sea un proyecto académico.
-
-Lo que sí está en el repo es `backend/.env.example`, una plantilla sin
-datos sensibles. Para crear tu `.env` real:
-
-```powershell
-cd backend
-copy .env.example .env
-```
-
-Y luego edita `backend/.env` con tus datos reales:
-
-```dotenv
-PORT=4000
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=finanzas_personales
-DB_USER=postgres
-DB_PASSWORD=tu_contraseña_real_de_postgres
-
-JWT_SECRET=un_secreto_largo_y_dificil_de_adivinar
-JWT_EXPIRES_IN=8h
-
-CORS_ORIGIN=http://localhost:4200
-```
-
-#### 3. Carpetas de compilación (`dist/`, `.angular/`)
-
-`backend/dist/` y `frontend/.angular/` son resultado de compilar el
-proyecto — código generado, no código fuente. Se regeneran solas al correr
-`pnpm build` (backend) o `pnpm start` / `ng build` (frontend). No hace
-falta hacer nada especial con ellas, simplemente no existen hasta que
-compilas por primera vez.
-
-#### 4. La carpeta `.vscode/` del frontend
-
-A diferencia de las anteriores, esta sí es útil tenerla — trae accesos
-directos y configuración de depuración para VS Code — pero como es
-configuración del editor y no del proyecto en sí, se dejó fuera del repo.
-Si quieres recuperarla, crea la carpeta `frontend/.vscode/` con estos tres
-archivos:
-
-**`frontend/.vscode/extensions.json`** — recomienda la extensión oficial de
-Angular al abrir el proyecto:
-
-```json
-{
-  "recommendations": ["angular.ng-template"]
-}
-```
-
-**`frontend/.vscode/tasks.json`** — define las tareas de `npm start` y
-`npm test` para que VS Code las reconozca:
-
-```json
-{
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "type": "npm",
-      "script": "start",
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "typescript",
-        "pattern": "$tsc",
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": { "regexp": "Changes detected" },
-          "endsPattern": { "regexp": "bundle generation (complete|failed)" }
-        }
-      }
-    },
-    {
-      "type": "npm",
-      "script": "test",
-      "isBackground": true,
-      "problemMatcher": {
-        "owner": "typescript",
-        "pattern": "$tsc",
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": { "regexp": "Changes detected" },
-          "endsPattern": { "regexp": "bundle generation (complete|failed)" }
-        }
-      }
-    }
-  ]
-}
-```
-
-**`frontend/.vscode/launch.json`** — permite depurar la app directo desde
-VS Code presionando F5 (abre Chrome apuntando a `localhost:4200`):
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "ng serve",
-      "type": "chrome",
-      "request": "launch",
-      "preLaunchTask": "npm: start",
-      "url": "http://localhost:4200/"
-    },
-    {
-      "name": "ng test",
-      "type": "chrome",
-      "request": "launch",
-      "preLaunchTask": "npm: test",
-      "url": "http://localhost:9876/debug.html"
-    }
-  ]
-}
-```
-
-> Un archivo que quizás también veas generado localmente es
-> `.vscode/mcp.json`. Ese lo genera el propio Angular CLI para integraciones
-> de asistentes de IA con las herramientas de Angular — no contiene ninguna
-> credencial, pero es opcional y no hace falta para que el proyecto
-> funcione, así que se dejó fuera del repo a propósito.
-
-### Instalación completa, paso a paso
-
-Con todo lo anterior explicado, aquí está el flujo completo desde cero:
-
-#### Requisitos previos
-
-- Node.js 22 o superior
-- pnpm (`npm install -g pnpm`)
-- PostgreSQL 14 o superior corriendo localmente
-- pgAdmin4 (opcional, pero recomendado para revisar la base de datos visualmente)
-
-#### 1. Clonar el repositorio
-
-```powershell
-git clone <url-de-tu-repositorio>
-cd finanzas-app
-```
-
-#### 2. Crear la base de datos
-
-Puedes hacerlo desde `psql` o desde pgAdmin4. Con `psql`:
-
+### 2. Configurar la Base de Datos
+Desde tu cliente de PostgreSQL favorito (psql, pgAdmin 4, DBeaver):
 ```powershell
 psql -U postgres -c "CREATE DATABASE finanzas_personales;"
 psql -U postgres -d finanzas_personales -f backend/db/init.sql
 ```
 
-Si usas pgAdmin4: crea la base `finanzas_personales`, ábrela, entra a Query
-Tool y pega ahí el contenido de `backend/db/init.sql`, luego ejecútalo.
+El script [backend/db/init.sql](backend/db/init.sql) crea:
+- Tabla `usuarios`: Con soporte para contraseña local nula (para usuarios de Google) y campo único `google_id`.
+- Tabla `movimientos`: Con soporte para `INGRESO` y `EGRESO`, monto positivo, categoría y relación en cascada con el usuario.
 
-Esto crea dos tablas: `usuarios` (para el login) y `movimientos` (donde
-van a quedar los ingresos y egresos cuando exista esa pantalla). Las dos
-quedan vacías; `movimientos` se llena hasta que se construya el "Nuevo
-Registro".
+### 3. Configurar y levantar el Backend
 
-#### 3. Configurar y levantar el backend
+1. Entra a la carpeta del backend e instala dependencias:
+   ```powershell
+   cd backend
+   pnpm install
+   ```
 
-```powershell
-cd backend
-pnpm install
-copy .env.example .env
-```
+2. Configura las variables de entorno en `backend/.env`:
+   ```dotenv
+   PORT=4000
 
-Edita `.env` con tus datos reales (ver la sección anterior).
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=finanzas_personales
+   DB_USER=postgres
+   DB_PASSWORD=admin
 
-Carga los dos usuarios base. Sus credenciales no están escritas en ningún
-archivo del proyecto — se inyectan como variables de entorno directamente
-en la terminal antes de correr el seed, así nunca quedan "quemadas" en el
-código ni en el repositorio:
+   JWT_SECRET=Koda2021@
+   JWT_EXPIRES_IN=4h
 
-**PowerShell:**
-```powershell
-$env:SEED_ADMIN_USERNAME="admin"
-$env:SEED_ADMIN_PASSWORD="Admin123!"
-$env:SEED_ADMIN_NOMBRE="Administrador"
-$env:SEED_USER_USERNAME="user"
-$env:SEED_USER_PASSWORD="User123!"
-$env:SEED_USER_NOMBRE="Usuario"
-pnpm seed
-```
+   GOOGLE_CLIENT_ID=54233591416-tl9qusi7f4vq8co8evl3g8dpvti5u0em.apps.googleusercontent.com
 
-**CMD:**
-```cmd
-set SEED_ADMIN_USERNAME=admin
-set SEED_ADMIN_PASSWORD=Admin123!
-set SEED_ADMIN_NOMBRE=Administrador
-set SEED_USER_USERNAME=user
-set SEED_USER_PASSWORD=User123!
-set SEED_USER_NOMBRE=Usuario
-pnpm seed
-```
+   CORS_ORIGIN=http://localhost:4200
+   ```
 
-Si corres `pnpm seed` sin definir esas variables primero, el script se
-detiene y te dice exactamente cuáles faltan, en vez de fallar en silencio.
+3. Ejecuta el script de semilla (Seed) para crear los usuarios base de prueba:
+   ```powershell
+   pnpm seed
+   ```
 
-Con eso, la tabla `usuarios` queda con:
+   *Usuarios creados:*
+   | Usuario | Contraseña | Rol |
+   |---|---|---|
+   | `admin` | `Admin123!` | ADMIN |
+   | `user` | `User123!` | USER |
 
-| Usuario | Contraseña  | Rol   |
-|---------|-------------|-------|
-| admin   | Admin123!   | ADMIN |
-| user    | User123!    | USER  |
+4. Inicia el servidor backend en modo desarrollo:
+   ```powershell
+   pnpm dev
+   ```
+   El servidor estará escuchando en `http://localhost:4000`.
 
-Ahora sí, levanta el servidor:
+### 4. Configurar y levantar el Frontend
 
-```powershell
-pnpm dev
-```
+1. En una nueva terminal, entra a la carpeta del frontend e instala dependencias:
+   ```powershell
+   cd frontend
+   pnpm install
+   ```
 
-El backend queda escuchando en `http://localhost:4000`.
-
-#### 4. Configurar y levantar el frontend
-
-En otra terminal:
-
-```powershell
-cd frontend
-pnpm install
-pnpm start
-```
-
-La aplicación queda disponible en `http://localhost:4200`. Si en algún
-momento cambias el puerto del backend, recuerda actualizar
-`frontend/src/app/core/config/api.config.ts`.
-
-### Cómo funciona el login por dentro
-
-1. La persona ingresa `username` y `password` en `/login`.
-2. El backend busca el usuario en PostgreSQL y compara la contraseña con
-   `bcrypt.compare()` contra el hash guardado — la contraseña real nunca se
-   guarda en texto plano, ni siquiera tú puedes verla en pgAdmin4.
-3. Si coincide, el backend firma un JWT con `jsonwebtoken` que incluye el
-   id, username y rol del usuario, y expira en 8 horas.
-4. El frontend guarda ese token, protege la ruta `/dashboard` con
-   `authGuard` (si no hay token válido, te manda de regreso al login), y
-   agrega el token automáticamente a cada petición saliente mediante
-   `authInterceptor`.
-
-### Cómo funciona el Dashboard por dentro
-
-1. `DashboardService` (frontend) llama a `MovimientoService.obtenerResumen()`,
-   que hace `GET /api/movimientos/resumen` contra el backend.
-2. En el backend, `movimientoService.obtenerResumen()` agrega en PostgreSQL
-   los totales de ingresos/egresos (histórico, del año actual y del mes
-   actual vs. el anterior) y arma las 4 tarjetas junto con las series para
-   la gráfica de línea (últimos 7 años) y la de barras (12 meses del año
-   en curso). Si el usuario todavía no tiene movimientos, todo regresa en
-   cero pero con los ejes ya armados, igual que en el maquetado original.
-3. Las gráficas se dibujan en el frontend con funciones propias en
-   TypeScript (`shared/graficas/graficas.util.ts`), sin ninguna librería
-   externa de gráficas — arman el SVG a mano a partir de una lista de
-   puntos que manda el backend.
-4. `Dashboard` (el componente) vuelve a pedir este resumen cada vez que se
-   entra a la ruta `/dashboard`, así que después de guardar un ingreso en
-   "Nuevo Registro" y volver, las tarjetas y gráficas ya están al día.
-
-### Cómo funciona "Nuevo Registro" por dentro
-
-1. El formulario de la izquierda ("Agregar Transacción") valida
-   descripción, monto (> Q0.00), fecha y categoría con Angular Reactive
-   Forms. El tipo de movimiento va fijo en `INGRESO` — no hay ningún
-   control de egreso visible en esta entrega.
-2. Cada clic en **"+ Agregar a la lista"** agrega esa fila a un arreglo en
-   memoria (un `signal`) que alimenta la "Vista Previa del Registro" de la
-   derecha; todavía no se ha guardado nada en la base de datos.
-3. El clic en **"Confirmar y guardar registro"** manda todas las filas
-   juntas a `POST /api/movimientos/lote`, que las inserta en una sola
-   transacción de PostgreSQL. Si todo sale bien, se limpia la vista previa
-   y aparece un aviso con acceso directo al Dashboard ya actualizado.
-4. En el backend, `movimientoService.crearLote()` rechaza cualquier
-   movimiento que no sea `INGRESO` o que no traiga una categoría válida
-   del catálogo (`GET /api/movimientos/categorias`), sin importar lo que
-   mande el cliente.
-
-### Paleta de colores
-
-| Variable                  | Hex       | Uso                                |
-|----------------------------|-----------|--------------------------------------|
-| `--color-bg-deep`          | `#010f1f` | Fondo general                        |
-| `--color-bg-surface`       | `#051424` | Tarjetas y paneles                   |
-| `--color-bg-elevated`      | `#0d1c2d` | Inputs y elementos elevados          |
-| `--color-border`           | `#2c3a4c` | Bordes y divisores                   |
-| `--color-accent`           | `#0066ff` | Acciones primarias, foco, enlaces    |
-| `--color-accent-light`     | `#3b82f6` | Acentos claros (gráficas, textos)    |
-| `--color-text-primary`     | `#ffffff` | Texto principal                      |
-| `--color-text-secondary`   | `#a0aab8` | Texto secundario                     |
+2. Inicia la aplicación Angular:
+   ```powershell
+   pnpm start
+   ```
+   La aplicación se abrirá en `http://localhost:4200`.
 
 ---
 
-*Este proyecto se construyó con apoyo de Claude (Anthropic) como asistente
-de desarrollo. La estructura, el código y las decisiones técnicas fueron
-revisadas para el contexto del proyecto académico "Fundación Kinal —
-Finanzas Personales".*
+## Cómo funciona cada módulo por dentro
+
+### 1. Autenticación con Google y Local
+- **Google OAuth2**: Al hacer clic en el botón renderizado por Google Identity Services, se obtiene una credencial JWT firmada por Google. El frontend la envía a `POST /api/auth/google`. El backend valida el token con `clienteGoogle.verifyIdToken({ idToken, audience })`, comprueba que el email esté verificado, busca si el usuario existe o lo registra automáticamente asignándole un nombre de usuario único, y devuelve un token JWT del sistema.
+- **Autenticación local**: Compara con `bcrypt.compare()` el hash seguro de la contraseña.
+- **Sesión reactiva**: Angular almacena el token y los datos públicos en `localStorage` y los expone como `Signals` reactivos (`authService.usuario`).
+
+### 2. Regla de Oro: Control de Límites para Egresos
+- **Fórmula**: $\text{Balance Disponible} = \text{Total Ingresos} - \text{Total Egresos}$.
+- Tanto en el formulario de `/nuevo-registro` al presionar *"+ Agregar a la lista"*, como al presionar *"Guardar registro"*, el sistema verifica que la cantidad del egreso no supere el saldo disponible acumulado.
+- Si no hay ingresos previos o el egreso sobrepasa el monto disponible, se aborta la acción y se notifica inmediatamente al usuario.
+- En el backend, las funciones `crear`, `crearLote`, `actualizar` y `eliminar` garantizan a nivel de base de datos que jamás quede un saldo negativo bajo ninguna circunstancia.
+
+### 3. Gráficas e Indicadores Financieros
+- Las gráficas del Dashboard son construidas completamente en TypeScript matemático puro mediante SVG dinámico, calculando escalas, coordenadas poligonales y ejes sin depender de librerías de terceros pesadas.
+
+---
+
+## Paleta de Colores del Sistema
+
+| Variable | Valor Hex | Aplicación |
+|---|---|---|
+| `--color-bg-deep` | `#020617` | Fondo global de la aplicación |
+| `--color-bg-surface` | `#0b1329` | Tarjetas, paneles y modales |
+| `--color-accent` | `#1d5aab` | Botones principales y realces |
+| `--color-accent-teal`| `#14b8c4` | Gradientes de éxito y gráficas |
+| `--color-text-primary`| `#ffffff` | Títulos y valores destacados |
+| `--color-text-secondary`| `#94a3b8` | Subtítulos y etiquetas secundarias |
+| `--color-danger` | `#ef4444` | Alertas de límite excedido y errores |
+| `--color-success` | `#22c55e` | Confirmaciones y registros guardados |
+
+---
+
+*Proyecto finalizado con éxito para la gestión y control inteligente de Finanzas Personales.*

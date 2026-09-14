@@ -34,7 +34,6 @@ export const CATEGORIAS_INGRESO: CategoriaIngreso[] = [
     { valor: 'REEMBOLSO', etiqueta: 'Reembolso' },
     { valor: 'PENSION', etiqueta: 'Pensión' },
     { valor: 'RENTA', etiqueta: 'Renta' },
-    { valor: 'PRESTAMO', etiqueta: 'Préstamo recibido' },
     { valor: 'INVERSION', etiqueta: 'Inversión' },
     { valor: 'OTRO', etiqueta: 'Otro' },
 ];
@@ -48,7 +47,6 @@ export const CATEGORIAS_EGRESO: CategoriaIngreso[] = [
     { valor: 'EDUCACION', etiqueta: 'Educación' },
     { valor: 'ENTRETENIMIENTO', etiqueta: 'Entretenimiento' },
     { valor: 'ROPA', etiqueta: 'Ropa y calzado' },
-    { valor: 'DEUDAS', etiqueta: 'Deudas y préstamos' },
     { valor: 'OTRO', etiqueta: 'Otro' },
 ];
 

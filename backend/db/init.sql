@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS usuarios (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(255),
     nombre VARCHAR(100) NOT NULL,
     apellido VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     rol VARCHAR(10) NOT NULL CHECK (rol IN ('ADMIN', 'USER')),
     telefono VARCHAR(20),
     avatar_url VARCHAR(255),
+    google_id VARCHAR(255) UNIQUE,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
@@ -19,13 +20,17 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- dia sin perder los usuarios que ya estuvieran cargados. En una base
 -- nueva no hacen nada porque el CREATE TABLE de arriba ya trae las
 -- columnas.
+ALTER TABLE usuarios ALTER COLUMN password DROP NOT NULL;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS apellido VARCHAR(100) NOT NULL DEFAULT 'Sin apellido';
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email VARCHAR(150);
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS genero VARCHAR(20) NOT NULL DEFAULT 'PREFIERO_NO_DECIRLO';
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS actualizado_en TIMESTAMP NOT NULL DEFAULT NOW();
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google_id ON usuarios (google_id) WHERE google_id IS NOT NULL;
 
 DO $$
 BEGIN
@@ -47,7 +52,7 @@ CREATE TABLE IF NOT EXISTS movimientos (
     id SERIAL PRIMARY KEY,
     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('INGRESO', 'EGRESO')),
-    descripcion VARCHAR(150) NOT NULL,
+    descripcion VARCHAR(100) NOT NULL,
     monto NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
     categoria VARCHAR(50) NOT NULL,
     fecha DATE NOT NULL,

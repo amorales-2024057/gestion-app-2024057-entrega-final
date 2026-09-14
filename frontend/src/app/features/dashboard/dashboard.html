@@ -19,7 +19,11 @@
 
       @if (usuario(); as datosUsuario) {
         <div class="userbox">
-          <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+          @if (datosUsuario.avatarUrl) {
+  <img class="userbox__avatar" [src]="datosUsuario.avatarUrl" [alt]="datosUsuario.nombre" />
+} @else {
+  <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+}
           <div class="userbox__text">
             <span class="userbox__hi">Hola</span>
             <span class="userbox__name">{{ datosUsuario.nombre }}</span>
@@ -137,7 +141,7 @@
 
       <article class="chart-card chart-card--dark">
         <div class="chart-card__head">
-          <h2>balance mensual del<br />usuario por<br /><span class="chart-card__big">Año:</span></h2>
+          <h2>Tu dinero cada mes<br />de este<br /><span class="chart-card__big">Año:</span></h2>
           <button class="dropdown dropdown--dark" type="button" disabled title="Disponible en una proxima entrega">
             <span>{{ anioActual }}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

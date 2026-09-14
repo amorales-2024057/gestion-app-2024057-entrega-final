@@ -14,6 +14,11 @@ export const authController = {
         res.status(201).json(resultado);
     },
 
+    async loginGoogle(req: RequestAutenticado, res: Response): Promise<void> {
+        const resultado = await authService.loginConGoogle(req.body?.credential);
+        res.status(200).json(resultado);
+    },
+
     async perfil(req: RequestAutenticado, res: Response): Promise<void> {
         if (!req.usuario) {
             throw new ApiError(401, 'No autenticado.');
