@@ -7,8 +7,11 @@ import { SesionExpiradaService } from './sesion-expirada.service';
 
 const CLAVE_TOKEN = 'finanzas_token';
 const CLAVE_USUARIO = 'finanzas_usuario';
+const DURACION_SESION_POR_DEFECTO_MS = 30 * 60 * 1000;
+const EVENTOS_ACTIVIDAD = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
 
 interface PayloadToken {
+    iat?: number;
     exp?: number;
 }
 
@@ -19,12 +22,16 @@ export class AuthService {
     private readonly usuarioActual = signal<UsuarioPublico | null>(this.cargarUsuarioGuardado());
     readonly usuario = this.usuarioActual.asReadonly();
 
-    private temporizadorExpiracion: ReturnType<typeof setTimeout> | null = null;
+    private temporizadorInactividad: ReturnType<typeof setTimeout> | null = null;
+    private duracionSesionMs = DURACION_SESION_POR_DEFECTO_MS;
+    private escuchandoActividad = false;
+    private readonly manejarActividad = (): void => this.reiniciarConteoInactividad();
 
     constructor(private readonly http: HttpClient) {
         const token = this.obtenerToken();
         if (token) {
-            this.programarExpiracion(token);
+            this.duracionSesionMs = this.calcularDuracionSesion(token);
+            this.iniciarControlDeInactividad();
         }
     }
 
@@ -34,25 +41,20 @@ export class AuthService {
             .pipe(tap((respuesta) => this.guardarSesion(respuesta)));
     }
 
-    // Crea la cuenta desde el boton "Crear cuenta" del login y, si todo
-    // sale bien, deja la sesion iniciada de una vez (el backend regresa
-    // el mismo formato que login), para no pedirle a la persona que
-    // escriba sus credenciales dos veces seguidas.
     registrar(datos: RegistroRequest): Observable<LoginResponse> {
-        return this.http
-            .post<LoginResponse>(`${API_BASE_URL}/auth/registro`, datos)
-            .pipe(tap((respuesta) => this.guardarSesion(respuesta)));
+        return this.http.post<LoginResponse>(`${API_BASE_URL}/auth/registro`, datos);
     }
 
     private guardarSesion(respuesta: LoginResponse): void {
         localStorage.setItem(CLAVE_TOKEN, respuesta.token);
         localStorage.setItem(CLAVE_USUARIO, JSON.stringify(respuesta.usuario));
         this.usuarioActual.set(respuesta.usuario);
-        this.programarExpiracion(respuesta.token);
+        this.duracionSesionMs = this.calcularDuracionSesion(respuesta.token);
+        this.iniciarControlDeInactividad();
     }
 
     logout(): void {
-        this.cancelarExpiracionProgramada();
+        this.detenerControlDeInactividad();
         localStorage.removeItem(CLAVE_TOKEN);
         localStorage.removeItem(CLAVE_USUARIO);
         this.usuarioActual.set(null);
@@ -79,35 +81,43 @@ export class AuthService {
         }
     }
 
-    /**
-     * Lee la fecha de expiración (`exp`) directamente del JWT y programa
-     * un temporizador para avisarle a la persona apenas el token venza,
-     * sin necesidad de esperar a que falle una petición al backend.
-     */
-    private programarExpiracion(token: string): void {
-        this.cancelarExpiracionProgramada();
-
+    private calcularDuracionSesion(token: string): number {
         const payload = this.decodificarPayload(token);
-        if (!payload?.exp) {
-            return;
+        if (payload?.iat && payload?.exp) {
+            const duracion = (payload.exp - payload.iat) * 1000;
+            if (duracion > 0) {
+                return duracion;
+            }
         }
-
-        const expiracionMs = payload.exp * 1000;
-        const msRestantes = expiracionMs - Date.now();
-
-        if (msRestantes <= 0) {
-            this.expirarSesion();
-            return;
-        }
-
-        this.temporizadorExpiracion = setTimeout(() => this.expirarSesion(), msRestantes);
+        return DURACION_SESION_POR_DEFECTO_MS;
     }
 
-    private cancelarExpiracionProgramada(): void {
-        if (this.temporizadorExpiracion !== null) {
-            clearTimeout(this.temporizadorExpiracion);
-            this.temporizadorExpiracion = null;
+    private iniciarControlDeInactividad(): void {
+        this.reiniciarConteoInactividad();
+
+        if (!this.escuchandoActividad) {
+            EVENTOS_ACTIVIDAD.forEach((evento) => window.addEventListener(evento, this.manejarActividad));
+            this.escuchandoActividad = true;
         }
+    }
+
+    private detenerControlDeInactividad(): void {
+        if (this.temporizadorInactividad !== null) {
+            clearTimeout(this.temporizadorInactividad);
+            this.temporizadorInactividad = null;
+        }
+
+        if (this.escuchandoActividad) {
+            EVENTOS_ACTIVIDAD.forEach((evento) => window.removeEventListener(evento, this.manejarActividad));
+            this.escuchandoActividad = false;
+        }
+    }
+
+    private reiniciarConteoInactividad(): void {
+        if (this.temporizadorInactividad !== null) {
+            clearTimeout(this.temporizadorInactividad);
+        }
+        this.temporizadorInactividad = setTimeout(() => this.expirarSesion(), this.duracionSesionMs);
     }
 
     private expirarSesion(): void {
