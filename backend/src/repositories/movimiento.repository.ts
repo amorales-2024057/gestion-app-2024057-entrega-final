@@ -19,7 +19,15 @@ interface TotalPorMes {
 }
 
 export const movimientoRepository = {
-        async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<Movimiento | null> {
+    async buscarPorId(usuarioId: number, id: number): Promise<Movimiento | null> {
+        const resultado = await pool.query<Movimiento>(
+            'SELECT * FROM movimientos WHERE id = $1 AND usuario_id = $2 LIMIT 1',
+            [id, usuarioId]
+        );
+        return resultado.rows[0] ?? null;
+    },
+
+    async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<Movimiento | null> {
         const resultado = await pool.query<Movimiento>(
             `UPDATE movimientos
              SET tipo = $3, descripcion = $4, monto = $5, categoria = $6, fecha = $7

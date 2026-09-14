@@ -116,8 +116,54 @@ function aMovimientoPublico(movimiento: {
 }
 
 export const movimientoService = {
+    async obtenerTotales(usuarioId: number): Promise<{
+        totalIngresos: number;
+        totalEgresos: number;
+        balanceDisponible: number;
+    }> {
+        const totalesPorTipo = await movimientoRepository.totalesPorTipo(usuarioId);
+        const totalIngresos = Number(
+            totalesPorTipo.find((fila) => fila.tipo === 'INGRESO')?.total ?? 0
+        );
+        const totalEgresos = Number(
+            totalesPorTipo.find((fila) => fila.tipo === 'EGRESO')?.total ?? 0
+        );
+        const balanceDisponible = Math.round((totalIngresos - totalEgresos) * 100) / 100;
+        return { totalIngresos, totalEgresos, balanceDisponible };
+    },
+
     async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
         const datosNormalizados = normalizarYValidar(datos);
+
+        const actual = await movimientoRepository.buscarPorId(usuarioId, id);
+        if (!actual) {
+            throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
+        }
+
+        const { totalIngresos, totalEgresos } = await this.obtenerTotales(usuarioId);
+        const montoActual = Number(actual.monto);
+
+        const ingresosAjustados =
+            actual.tipo === 'INGRESO' ? totalIngresos - montoActual : totalIngresos;
+        const egresosAjustados =
+            actual.tipo === 'EGRESO' ? totalEgresos - montoActual : totalEgresos;
+
+        const nuevosIngresos =
+            datosNormalizados.tipo === 'INGRESO'
+                ? ingresosAjustados + datosNormalizados.monto
+                : ingresosAjustados;
+        const nuevosEgresos =
+            datosNormalizados.tipo === 'EGRESO'
+                ? egresosAjustados + datosNormalizados.monto
+                : egresosAjustados;
+
+        if (nuevosEgresos > nuevosIngresos) {
+            throw new ApiError(
+                400,
+                'No se puede actualizar el movimiento porque supera el límite de los ingresos disponibles.'
+            );
+        }
+
         const actualizado = await movimientoRepository.actualizar(usuarioId, id, datosNormalizados);
         if (!actualizado) {
             throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
@@ -126,6 +172,22 @@ export const movimientoService = {
     },
 
     async eliminar(usuarioId: number, id: number): Promise<void> {
+        const actual = await movimientoRepository.buscarPorId(usuarioId, id);
+        if (!actual) {
+            throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
+        }
+
+        if (actual.tipo === 'INGRESO') {
+            const { totalIngresos, totalEgresos } = await this.obtenerTotales(usuarioId);
+            const montoActual = Number(actual.monto);
+            if (totalIngresos - montoActual < totalEgresos) {
+                throw new ApiError(
+                    400,
+                    'No se puede eliminar este ingreso porque los egresos registrados superarían los ingresos restantes.'
+                );
+            }
+        }
+
         const eliminado = await movimientoRepository.eliminar(usuarioId, id);
         if (!eliminado) {
             throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
@@ -138,6 +200,17 @@ export const movimientoService = {
 
     async crear(usuarioId: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
         const datosNormalizados = normalizarYValidar(datos);
+
+        if (datosNormalizados.tipo === 'EGRESO') {
+            const { balanceDisponible } = await this.obtenerTotales(usuarioId);
+            if (datosNormalizados.monto > balanceDisponible) {
+                throw new ApiError(
+                    400,
+                    'No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente.'
+                );
+            }
+        }
+
         const creado = await movimientoRepository.crear(usuarioId, datosNormalizados);
         return aMovimientoPublico(creado);
     },
@@ -148,6 +221,23 @@ export const movimientoService = {
         }
 
         const movimientosNormalizados = movimientos.map(normalizarYValidar);
+
+        const { balanceDisponible } = await this.obtenerTotales(usuarioId);
+        let balanceSimulado = balanceDisponible;
+
+        for (const mov of movimientosNormalizados) {
+            if (mov.tipo === 'INGRESO') {
+                balanceSimulado = Math.round((balanceSimulado + mov.monto) * 100) / 100;
+            } else if (mov.tipo === 'EGRESO') {
+                if (mov.monto > balanceSimulado) {
+                    throw new ApiError(
+                        400,
+                        'No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente.'
+                    );
+                }
+                balanceSimulado = Math.round((balanceSimulado - mov.monto) * 100) / 100;
+            }
+        }
 
         const creados = await movimientoRepository.crearVarios(usuarioId, movimientosNormalizados);
         return creados.map(aMovimientoPublico);
@@ -247,6 +337,15 @@ export const movimientoService = {
             return { label: nombre, value: ingresosMes - egresosMes };
         });
 
-        return { tarjetas, balanceAnual, balanceMensual };
+        return {
+            tarjetas,
+            balanceAnual,
+            balanceMensual,
+            totales: {
+                totalIngresos,
+                totalEgresos,
+                balanceDisponible: balanceTotal,
+            },
+        };
     },
 };

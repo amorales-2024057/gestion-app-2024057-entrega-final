@@ -67,6 +67,13 @@
               Egreso
             </button>
           </div>
+
+          @if (tipoSeleccionado() === 'EGRESO') {
+            <div class="banner-disponible" [class.banner-disponible--agotado]="balanceDisponibleActual() <= 0">
+              <span>Límite disponible para egresos:</span>
+              <strong>{{ formatearMonto(balanceDisponibleActual()) }}</strong>
+            </div>
+          }
         </div>
 
         <form [formGroup]="formulario" (ngSubmit)="agregarALaLista()" class="formulario" novalidate>
@@ -117,6 +124,10 @@
               <span class="campo__error">Seleccione una categoría.</span>
             }
           </div>
+
+          @if (mensajeError(); as error) {
+            <div class="alerta alerta--error">{{ error }}</div>
+          }
 
           <button type="submit" class="boton-agregar">
             <span class="boton-agregar__icono" aria-hidden="true">+</span>
@@ -174,6 +185,10 @@
         </div>
 
         <footer class="panel__pie">
+          <div class="balance-a-registrar balance-a-registrar--disponible">
+            <span>Balance disponible actual:</span>
+            <strong [class.texto-alerta]="balanceDisponibleActual() < 0">{{ formatearMonto(balanceDisponibleActual()) }}</strong>
+          </div>
           <div class="balance-a-registrar">
             <span>Total de ingresos a guardar:</span>
             <strong>{{ formatearMonto(totalIngresosVista()) }}</strong>
