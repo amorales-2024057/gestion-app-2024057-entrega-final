@@ -17,7 +17,6 @@ const CATEGORIAS_INGRESO = [
     'REEMBOLSO',
     'PENSION',
     'RENTA',
-    'PRESTAMO',
     'INVERSION',
     'OTRO',
 ];
@@ -31,7 +30,6 @@ const CATEGORIAS_EGRESO = [
     'EDUCACION',
     'ENTRETENIMIENTO',
     'ROPA',
-    'DEUDAS',
     'OTRO',
 ];
 
@@ -44,9 +42,7 @@ function categoriasPorTipo(tipo: TipoMovimiento): string[] {
 }
 
 function formatearMoneda(valor: number): string {
-    const signo = valor < 0 ? '-' : '';
-    const absoluto = Math.abs(valor);
-    return `${signo}Q${absoluto.toLocaleString('es-GT', {
+    return `Q${Math.abs(valor).toLocaleString('es-GT', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     })}`;
@@ -57,21 +53,29 @@ function formatearDelta(actual: number, anterior: number): string {
         return actual === 0 ? 'Sin registros todavía' : 'Nuevo este mes';
     }
     const variacion = ((actual - anterior) / anterior) * 100;
-    const signo = variacion >= 0 ? '+' : '';
-    return `${signo}${variacion.toFixed(1)}% vs mes anterior`;
+    if (Math.round(variacion) === 0) {
+        return 'Igual que el mes pasado';
+    }
+    const comparativo = variacion > 0 ? 'más' : 'menos';
+    return `${Math.abs(variacion).toFixed(0)}% ${comparativo} que el mes pasado`;
 }
 
-function validarMovimiento(datos: CrearMovimientoRequest): void {
+function fechaDeHoy(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function redondearMonto(monto: number): number {
+    return Math.round(monto * 100) / 100;
+}
+
+function normalizarYValidar(datos: CrearMovimientoRequest): CrearMovimientoRequest {
     if (datos.tipo !== 'INGRESO' && datos.tipo !== 'EGRESO') {
         throw new ApiError(400, 'El tipo de movimiento debe ser INGRESO o EGRESO.');
     }
 
-    if (!datos.descripcion?.trim()) {
-        throw new ApiError(400, 'La descripción es obligatoria.');
-    }
-
-    if (datos.descripcion.trim().length > 150) {
-        throw new ApiError(400, 'La descripción no puede superar los 150 caracteres.');
+    const descripcion = (datos.descripcion ?? '').trim();
+    if (descripcion.length > 100) {
+        throw new ApiError(400, 'La descripción no puede superar los 100 caracteres.');
     }
 
     if (!Number.isFinite(datos.monto) || datos.monto <= 0) {
@@ -82,9 +86,12 @@ function validarMovimiento(datos: CrearMovimientoRequest): void {
         throw new ApiError(400, 'La categoría seleccionada no es válida para ese tipo de movimiento.');
     }
 
-    if (!datos.fecha || Number.isNaN(Date.parse(datos.fecha))) {
-        throw new ApiError(400, 'La fecha no es válida.');
-    }
+    return {
+        ...datos,
+        descripcion,
+        monto: redondearMonto(datos.monto),
+        fecha: fechaDeHoy(),
+    };
 }
 
 function aMovimientoPublico(movimiento: {
@@ -109,9 +116,9 @@ function aMovimientoPublico(movimiento: {
 }
 
 export const movimientoService = {
-        async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
-        validarMovimiento(datos);
-        const actualizado = await movimientoRepository.actualizar(usuarioId, id, datos);
+    async actualizar(usuarioId: number, id: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
+        const datosNormalizados = normalizarYValidar(datos);
+        const actualizado = await movimientoRepository.actualizar(usuarioId, id, datosNormalizados);
         if (!actualizado) {
             throw new ApiError(404, 'El movimiento no existe o no pertenece al usuario.');
         }
@@ -130,8 +137,8 @@ export const movimientoService = {
     },
 
     async crear(usuarioId: number, datos: CrearMovimientoRequest): Promise<MovimientoPublico> {
-        validarMovimiento(datos);
-        const creado = await movimientoRepository.crear(usuarioId, datos);
+        const datosNormalizados = normalizarYValidar(datos);
+        const creado = await movimientoRepository.crear(usuarioId, datosNormalizados);
         return aMovimientoPublico(creado);
     },
 
@@ -140,9 +147,9 @@ export const movimientoService = {
             throw new ApiError(400, 'No hay movimientos para guardar.');
         }
 
-        movimientos.forEach(validarMovimiento);
+        const movimientosNormalizados = movimientos.map(normalizarYValidar);
 
-        const creados = await movimientoRepository.crearVarios(usuarioId, movimientos);
+        const creados = await movimientoRepository.crearVarios(usuarioId, movimientosNormalizados);
         return creados.map(aMovimientoPublico);
     },
 
@@ -207,17 +214,19 @@ export const movimientoService = {
                 acento: true,
             },
             {
-                etiqueta: 'Porcentaje de balance mensual',
-                valor: `${porcentajeBalanceMensual.toFixed(1)}%`,
+                etiqueta: 'Ahorro de este mes',
+                valor: `${Math.abs(porcentajeBalanceMensual).toFixed(0)}%`,
                 delta: ingresosMesActual > 0 ? 'Del mes en curso' : 'Sin registros todavía',
                 icono: 'grafico',
             },
         ];
 
         const anioActual = new Date().getFullYear();
+        const aniosConDatos = totalesPorAnio.map((fila) => Number(fila.anio));
+        const anioInicio = aniosConDatos.length > 0 ? Math.min(anioActual, ...aniosConDatos) : anioActual;
+
         const balanceAnual: PuntoGrafica[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const anio = anioActual - i;
+        for (let anio = anioInicio; anio <= anioActual; anio++) {
             const ingresosAnio = Number(
                 totalesPorAnio.find((f) => f.anio === String(anio) && f.tipo === 'INGRESO')?.total ?? 0
             );
