@@ -13,11 +13,12 @@
         <a routerLink="/dashboard" class="navlink navlink--enlace">Dashboard</a>
         <span class="navlink navlink--activo">Registros</span>
         <a routerLink="/nuevo-registro" class="navlink navlink--enlace">Nuevo Registro</a>
+        <a routerLink="/cuenta" class="navlink navlink--enlace">Cuenta</a>
         <button type="button" class="navlink navlink--boton" (click)="cerrarSesion()">Cerrar sesion</button>
       </nav>
 
       @if (usuario(); as datosUsuario) {
-        <div class="userbox">
+        <a routerLink="/cuenta" class="userbox userbox--link" title="Mi Cuenta">
           @if (datosUsuario.avatarUrl) {
   <img class="userbox__avatar" [src]="datosUsuario.avatarUrl" [alt]="datosUsuario.nombre" />
 } @else {
@@ -27,7 +28,7 @@
             <span class="userbox__hi">Hola</span>
             <span class="userbox__name">{{ datosUsuario.nombre }}</span>
           </div>
-        </div>
+        </a>
       }
     </header>
 

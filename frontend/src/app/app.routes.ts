@@ -4,6 +4,7 @@ import { Registro } from './features/registro/registro';
 import { Dashboard } from './features/dashboard/dashboard';
 import { NuevoRegistro } from './features/nuevo-registro/nuevo-registro';
 import { Registros } from './features/registros/registros';
+import { Cuenta } from './features/cuenta/cuenta';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -13,5 +14,6 @@ export const routes: Routes = [
     { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
     { path: 'registros', component: Registros, canActivate: [authGuard] },
     { path: 'nuevo-registro', component: NuevoRegistro, canActivate: [authGuard] },
+    { path: 'cuenta', component: Cuenta, canActivate: [authGuard] },
     { path: '**', redirectTo: 'login' },
 ];

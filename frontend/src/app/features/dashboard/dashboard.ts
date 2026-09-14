@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -14,7 +14,7 @@ import { construirSvgBarras, construirSvgLinea } from '../../shared/graficas/gra
     templateUrl: './dashboard.html',
     styleUrl: './dashboard.css',
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
     private readonly authService = inject(AuthService);
     private readonly router = inject(Router);
     private readonly sanitizer = inject(DomSanitizer);
@@ -25,6 +25,7 @@ export class Dashboard implements OnInit {
 
     protected readonly cargando = signal(true);
     protected readonly errorCarga = signal<string | null>(null);
+    private temporizadorError: ReturnType<typeof setTimeout> | null = null;
 
     protected readonly tarjetas = signal<TarjetaResumen[]>([]);
     protected readonly svgLinea = signal<SafeHtml | null>(null);
@@ -34,12 +35,30 @@ export class Dashboard implements OnInit {
         this.cargarResumen();
     }
 
-    // Cada vez que se entra al dashboard (por ejemplo, despues de
-    // guardar un ingreso nuevo en "Nuevo Registro" y volver) se vuelve a
-    // pedir el resumen al backend, asi las tarjetas y las graficas
-    // siempre reflejan lo que hay guardado en la base de datos.
+    ngOnDestroy(): void {
+        if (this.temporizadorError !== null) {
+            clearTimeout(this.temporizadorError);
+            this.temporizadorError = null;
+        }
+    }
+
+    private mostrarError(mensaje: string): void {
+        if (this.temporizadorError !== null) {
+            clearTimeout(this.temporizadorError);
+        }
+        this.errorCarga.set(mensaje);
+        this.temporizadorError = setTimeout(() => {
+            this.errorCarga.set(null);
+            this.temporizadorError = null;
+        }, 5000);
+    }
+
     private cargarResumen(): void {
         this.cargando.set(true);
+        if (this.temporizadorError !== null) {
+            clearTimeout(this.temporizadorError);
+            this.temporizadorError = null;
+        }
         this.errorCarga.set(null);
 
         this.dashboardService.obtenerResumen().subscribe({
@@ -62,7 +81,7 @@ export class Dashboard implements OnInit {
             },
             error: () => {
                 this.cargando.set(false);
-                this.errorCarga.set('No se pudo cargar el resumen financiero. Por favor, intente de nuevo.');
+                this.mostrarError('No se pudo cargar el resumen financiero. Por favor, intente de nuevo.');
             },
         });
     }

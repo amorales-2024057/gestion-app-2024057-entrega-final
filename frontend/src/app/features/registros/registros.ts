@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -60,7 +60,7 @@ function perteneceAlMes(fecha: string, referencia: Date): boolean {
     templateUrl: './registros.html',
     styleUrl: './registros.css',
 })
-export class Registros implements OnInit {
+export class Registros implements OnInit, OnDestroy {
     private readonly authService = inject(AuthService);
     private readonly movimientoService = inject(MovimientoService);
     private readonly router = inject(Router);
@@ -71,6 +71,8 @@ export class Registros implements OnInit {
     protected readonly cargando = signal(true);
     protected readonly mensajeError = signal<string | null>(null);
     protected readonly mensajeAccion = signal<string | null>(null);
+    private temporizadorAccion: ReturnType<typeof setTimeout> | null = null;
+    private temporizadorError: ReturnType<typeof setTimeout> | null = null;
 
     protected readonly movimientos = signal<MovimientoVista[]>([]);
     protected readonly filtroTipo = signal<FiltroTipo>('TODOS');
@@ -188,8 +190,45 @@ export class Registros implements OnInit {
         });
     }
 
+    ngOnDestroy(): void {
+        if (this.temporizadorAccion !== null) {
+            clearTimeout(this.temporizadorAccion);
+            this.temporizadorAccion = null;
+        }
+        if (this.temporizadorError !== null) {
+            clearTimeout(this.temporizadorError);
+            this.temporizadorError = null;
+        }
+    }
+
+    private mostrarAccion(mensaje: string): void {
+        if (this.temporizadorAccion !== null) {
+            clearTimeout(this.temporizadorAccion);
+        }
+        this.mensajeAccion.set(mensaje);
+        this.temporizadorAccion = setTimeout(() => {
+            this.mensajeAccion.set(null);
+            this.temporizadorAccion = null;
+        }, 5000);
+    }
+
+    private mostrarError(mensaje: string): void {
+        if (this.temporizadorError !== null) {
+            clearTimeout(this.temporizadorError);
+        }
+        this.mensajeError.set(mensaje);
+        this.temporizadorError = setTimeout(() => {
+            this.mensajeError.set(null);
+            this.temporizadorError = null;
+        }, 5000);
+    }
+
     protected cargarMovimientos(): void {
         this.cargando.set(true);
+        if (this.temporizadorError !== null) {
+            clearTimeout(this.temporizadorError);
+            this.temporizadorError = null;
+        }
         this.mensajeError.set(null);
 
         this.movimientoService.listar().subscribe({
@@ -205,7 +244,7 @@ export class Registros implements OnInit {
             },
             error: () => {
                 this.cargando.set(false);
-                this.mensajeError.set(
+                this.mostrarError(
                     'No se pudieron cargar sus registros. Por favor, intente de nuevo.'
                 );
             },
@@ -313,11 +352,11 @@ export class Registros implements OnInit {
                             : m
                     )
                 );
-                this.mensajeAccion.set('Registro actualizado correctamente.');
+                this.mostrarAccion('Registro actualizado correctamente.');
             },
             error: () => {
                 this.guardando.set(false);
-                this.mensajeAccion.set('No se pudo actualizar el registro. Intente de nuevo.');
+                this.mostrarAccion('No se pudo actualizar el registro. Intente de nuevo.');
             },
         });
     }
@@ -343,11 +382,11 @@ export class Registros implements OnInit {
                 if (this.paginaActual() > this.totalPaginas()) {
                     this.paginaActual.set(this.totalPaginas());
                 }
-                this.mensajeAccion.set('Registro eliminado correctamente.');
+                this.mostrarAccion('Registro eliminado correctamente.');
             },
             error: () => {
                 this.guardando.set(false);
-                this.mensajeAccion.set('No se pudo eliminar el registro. Intente de nuevo.');
+                this.mostrarAccion('No se pudo eliminar el registro. Intente de nuevo.');
             },
         });
     }
