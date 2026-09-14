@@ -9,6 +9,8 @@ import { env } from '../config/env';
 
 const clienteGoogle = new OAuth2Client(env.googleClientId);
 
+console.log('GOOGLE_CLIENT_ID que usa el backend:', JSON.stringify(env.googleClientId));
+
 const GENEROS_VALIDOS: GeneroUsuario[] = [
     'MASCULINO',
     'FEMENINO',
@@ -76,7 +78,10 @@ function generarToken(usuario: Usuario): string {
 }
 
 async function generarUsernameUnico(base: string): Promise<string> {
-    const limpio = base.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40) || 'usuario';
+    let limpio = base.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40) || 'usuario';
+    if (limpio.length < 3) {
+        limpio = (limpio + 'usr').slice(0, 10);
+    }
     let candidato = limpio;
     let sufijo = 1;
     while (await usuarioRepository.existeUsername(candidato)) {
@@ -121,6 +126,11 @@ export const authService = {
             throw new ApiError(400, 'Falta el token de Google.');
         }
 
+        if (!env.googleClientId) {
+            console.error('Error crítico: GOOGLE_CLIENT_ID no está configurado.');
+            throw new ApiError(500, 'Error de configuración en el servidor para autenticación de Google.');
+        }
+
         let payload;
         try {
             const ticket = await clienteGoogle.verifyIdToken({
@@ -128,12 +138,17 @@ export const authService = {
                 audience: env.googleClientId,
             });
             payload = ticket.getPayload();
-        } catch {
+        } catch (error) {
+            console.error('Error verificando token de Google:', error);
             throw new ApiError(401, 'No se pudo verificar la cuenta de Google.');
         }
 
         if (!payload?.email) {
             throw new ApiError(401, 'La cuenta de Google no tiene un correo asociado.');
+        }
+
+        if (payload.email_verified === false) {
+            throw new ApiError(401, 'El correo de Google no está verificado.');
         }
 
         const email = payload.email.toLowerCase();

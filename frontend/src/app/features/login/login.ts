@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, NgZone, ViewChild, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -14,7 +14,7 @@ declare const google: any;
     templateUrl: './login.html',
     styleUrl: './login.css',
 })
-export class Login implements AfterViewInit {
+export class Login implements AfterViewInit, OnDestroy {
     @ViewChild('googleBoton', { static: true }) googleBoton!: ElementRef<HTMLDivElement>;
 
     private readonly fb = inject(FormBuilder);
@@ -22,6 +22,8 @@ export class Login implements AfterViewInit {
     private readonly router = inject(Router);
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly ngZone = inject(NgZone);
+
+    private googleInitTimer: ReturnType<typeof setInterval> | null = null;
 
     protected readonly cargando = signal(false);
     protected readonly mensajeError = signal<string | null>(null);
@@ -42,7 +44,44 @@ export class Login implements AfterViewInit {
     }
 
     ngAfterViewInit(): void {
-        if (typeof google === 'undefined') {
+        this.renderizarBotonGoogle();
+    }
+
+    ngOnDestroy(): void {
+        if (this.googleInitTimer) {
+            clearInterval(this.googleInitTimer);
+            this.googleInitTimer = null;
+        }
+    }
+
+    private renderizarBotonGoogle(): void {
+        if (typeof google !== 'undefined' && google?.accounts?.id) {
+            this.inicializarBotonGoogle();
+            return;
+        }
+
+        let intentos = 0;
+        const maxIntentos = 50;
+        this.googleInitTimer = setInterval(() => {
+            intentos++;
+            if (typeof google !== 'undefined' && google?.accounts?.id) {
+                if (this.googleInitTimer) {
+                    clearInterval(this.googleInitTimer);
+                    this.googleInitTimer = null;
+                }
+                this.inicializarBotonGoogle();
+            } else if (intentos >= maxIntentos) {
+                if (this.googleInitTimer) {
+                    clearInterval(this.googleInitTimer);
+                    this.googleInitTimer = null;
+                }
+                console.warn('Google Identity Services no pudo ser cargado a tiempo.');
+            }
+        }, 100);
+    }
+
+    private inicializarBotonGoogle(): void {
+        if (!this.googleBoton?.nativeElement) {
             return;
         }
 
@@ -52,6 +91,7 @@ export class Login implements AfterViewInit {
                 this.ngZone.run(() => this.continuarConGoogle(respuesta.credential)),
         });
 
+        this.googleBoton.nativeElement.innerHTML = '';
         google.accounts.id.renderButton(this.googleBoton.nativeElement, {
             theme: 'filled_black',
             size: 'large',
