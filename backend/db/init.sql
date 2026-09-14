@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS movimientos (
     id SERIAL PRIMARY KEY,
     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     tipo VARCHAR(10) NOT NULL CHECK (tipo IN ('INGRESO', 'EGRESO')),
-    descripcion VARCHAR(150) NOT NULL,
+    descripcion VARCHAR(100) NOT NULL,
     monto NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
     categoria VARCHAR(50) NOT NULL,
     fecha DATE NOT NULL,
