@@ -19,7 +19,11 @@
 
       @if (usuario(); as datosUsuario) {
         <div class="userbox">
-          <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+          @if (datosUsuario.avatarUrl) {
+  <img class="userbox__avatar" [src]="datosUsuario.avatarUrl" [alt]="datosUsuario.nombre" />
+} @else {
+  <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+}
           <div class="userbox__text">
             <span class="userbox__hi">Hola</span>
             <span class="userbox__name">{{ datosUsuario.nombre }}</span>

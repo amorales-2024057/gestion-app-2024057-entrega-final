@@ -119,6 +119,7 @@
 }
 
 .userbox__avatar {
+  object-fit: cover;
   display: inline-flex;
   align-items: center;
   justify-content: center;

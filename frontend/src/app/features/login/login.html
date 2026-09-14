@@ -33,6 +33,12 @@
         <p>Ingrese sus credenciales para continuar.</p>
       </header>
 
+      <div #googleBoton class="google-boton"></div>
+
+      <div class="divisor">
+        <span>o con su usuario</span>
+      </div>
+
       <form [formGroup]="formulario" (ngSubmit)="enviar()" class="formulario" novalidate>
         @if (mensajeExito()) {
           <div class="alerta alerta--exito">{{ mensajeExito() }}</div>

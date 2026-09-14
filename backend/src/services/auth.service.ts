@@ -1,10 +1,13 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import { usuarioRepository } from '../repositories/usuario.repository';
 import { LoginRequest, LoginResponse, JwtPayload, RegistroRequest } from '../models/auth.model';
 import { GeneroUsuario, Usuario, UsuarioPublico } from '../models/usuario.model';
 import { ApiError } from '../utils/api-error';
 import { env } from '../config/env';
+
+const clienteGoogle = new OAuth2Client(env.googleClientId);
 
 const GENEROS_VALIDOS: GeneroUsuario[] = [
     'MASCULINO',
@@ -63,6 +66,26 @@ export function aUsuarioPublico(usuario: Usuario): UsuarioPublico {
     };
 }
 
+function generarToken(usuario: Usuario): string {
+    const payload: JwtPayload = {
+        id: usuario.id,
+        username: usuario.username,
+        rol: usuario.rol,
+    };
+    return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
+}
+
+async function generarUsernameUnico(base: string): Promise<string> {
+    const limpio = base.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40) || 'usuario';
+    let candidato = limpio;
+    let sufijo = 1;
+    while (await usuarioRepository.existeUsername(candidato)) {
+        candidato = `${limpio}${sufijo}`;
+        sufijo += 1;
+    }
+    return candidato;
+}
+
 export const authService = {
     async login({ username, password }: LoginRequest): Promise<LoginResponse> {
         if (!username || !password) {
@@ -78,31 +101,71 @@ export const authService = {
             throw new ApiError(403, 'Esta cuenta se encuentra deshabilitada.');
         }
 
+        if (!usuario.password) {
+            throw new ApiError(401, 'Esta cuenta inicia sesión con Google. Use el botón "Continuar con Google".');
+        }
+
         const passwordValida = await bcrypt.compare(password, usuario.password);
         if (!passwordValida) {
             throw new ApiError(401, 'Credenciales inválidas.');
         }
 
-        const payload: JwtPayload = {
-            id: usuario.id,
-            username: usuario.username,
-            rol: usuario.rol,
-        };
-
-        const token = jwt.sign(payload, env.jwtSecret, {
-            expiresIn: env.jwtExpiresIn,
-        } as jwt.SignOptions);
-
         return {
-            token,
+            token: generarToken(usuario),
             usuario: aUsuarioPublico(usuario),
         };
     },
 
-    // Alta de cuenta desde el boton "Crear cuenta" del login. Si todo
-    // sale bien, deja al usuario con la sesion ya iniciada (mismo
-    // formato de respuesta que login), para no obligarlo a escribir sus
-    // credenciales dos veces seguidas.
+    async loginConGoogle(credential: string): Promise<LoginResponse> {
+        if (!credential) {
+            throw new ApiError(400, 'Falta el token de Google.');
+        }
+
+        let payload;
+        try {
+            const ticket = await clienteGoogle.verifyIdToken({
+                idToken: credential,
+                audience: env.googleClientId,
+            });
+            payload = ticket.getPayload();
+        } catch {
+            throw new ApiError(401, 'No se pudo verificar la cuenta de Google.');
+        }
+
+        if (!payload?.email) {
+            throw new ApiError(401, 'La cuenta de Google no tiene un correo asociado.');
+        }
+
+        const email = payload.email.toLowerCase();
+        let usuario = await usuarioRepository.buscarPorGoogleId(payload.sub);
+
+        if (!usuario) {
+            const existente = await usuarioRepository.buscarPorEmail(email);
+            if (existente) {
+                usuario = await usuarioRepository.vincularGoogle(existente.id, payload.sub, payload.picture ?? null);
+            } else {
+                const username = await generarUsernameUnico(email.split('@')[0] ?? 'usuario');
+                usuario = await usuarioRepository.crearConGoogle({
+                    username,
+                    nombre: payload.given_name?.trim() || payload.name?.trim() || 'Usuario',
+                    apellido: payload.family_name?.trim() || 'Sin apellido',
+                    email,
+                    avatarUrl: payload.picture ?? null,
+                    googleId: payload.sub,
+                });
+            }
+        }
+
+        if (!usuario.activo) {
+            throw new ApiError(403, 'Esta cuenta se encuentra deshabilitada.');
+        }
+
+        return {
+            token: generarToken(usuario),
+            usuario: aUsuarioPublico(usuario),
+        };
+    },
+
     async registrar(datos: RegistroRequest): Promise<LoginResponse> {
         validarDatosRegistro(datos);
 
@@ -131,18 +194,8 @@ export const authService = {
             passwordHash
         );
 
-        const payload: JwtPayload = {
-            id: usuarioCreado.id,
-            username: usuarioCreado.username,
-            rol: usuarioCreado.rol,
-        };
-
-        const token = jwt.sign(payload, env.jwtSecret, {
-            expiresIn: env.jwtExpiresIn,
-        } as jwt.SignOptions);
-
         return {
-            token,
+            token: generarToken(usuarioCreado),
             usuario: aUsuarioPublico(usuarioCreado),
         };
     },
