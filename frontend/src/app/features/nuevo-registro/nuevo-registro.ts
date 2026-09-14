@@ -11,11 +11,20 @@ import {
 } from '../../core/models/movimiento.model';
 
 function formatearMoneda(valor: number): string {
-    return `Q${valor.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Q${Math.abs(valor).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function redondearMonto(valor: number): number {
+    return Math.round(valor * 100) / 100;
 }
 
 function fechaDeHoy(): string {
     return new Date().toISOString().slice(0, 10);
+}
+
+function fechaDeHoyTexto(): string {
+    const [anio, mes, dia] = fechaDeHoy().split('-');
+    return `${dia}/${mes}/${anio}`;
 }
 
 @Component({
@@ -38,24 +47,26 @@ export class NuevoRegistro {
 
     protected readonly vistaPrevia = signal<MovimientoEnVistaPrevia[]>([]);
 
-    protected readonly balanceARegistrar = computed(() =>
-        this.vistaPrevia().reduce(
-            (total, fila) => total + (fila.tipo === 'EGRESO' ? -fila.monto : fila.monto),
-            0
-        )
+    protected readonly totalIngresosVista = computed(() =>
+        this.vistaPrevia()
+            .filter((fila) => fila.tipo === 'INGRESO')
+            .reduce((total, fila) => total + fila.monto, 0)
     );
-    protected readonly balanceARegistrarTexto = computed(() =>
-        formatearMoneda(this.balanceARegistrar())
+    protected readonly totalEgresosVista = computed(() =>
+        this.vistaPrevia()
+            .filter((fila) => fila.tipo === 'EGRESO')
+            .reduce((total, fila) => total + fila.monto, 0)
     );
+
+    protected readonly hoyTexto = fechaDeHoyTexto();
 
     protected readonly guardando = signal(false);
     protected readonly mensajeError = signal<string | null>(null);
     protected readonly mensajeExito = signal<string | null>(null);
 
     protected readonly formulario = this.fb.group({
-        descripcion: ['', [Validators.required, Validators.maxLength(150)]],
+        descripcion: ['', [Validators.maxLength(100)]],
         monto: [null as number | null, [Validators.required, Validators.min(0.01)]],
-        fecha: [fechaDeHoy(), [Validators.required]],
         categoria: ['', [Validators.required]],
     });
 
@@ -75,6 +86,10 @@ export class NuevoRegistro {
         return formatearMoneda(valor);
     }
 
+    protected descripcionAMostrar(descripcion: string): string {
+        return descripcion.trim() ? descripcion : 'Sin descripción';
+    }
+
     protected agregarALaLista(): void {
         if (this.formulario.invalid) {
             this.formulario.markAllAsTouched();
@@ -84,7 +99,7 @@ export class NuevoRegistro {
         this.mensajeExito.set(null);
         this.mensajeError.set(null);
 
-        const { descripcion, monto, fecha, categoria } = this.formulario.getRawValue();
+        const { descripcion, monto, categoria } = this.formulario.getRawValue();
 
         const nuevaFila: MovimientoEnVistaPrevia = {
             idLocal:
@@ -93,9 +108,9 @@ export class NuevoRegistro {
                     : `${Date.now()}-${Math.random()}`,
             tipo: this.tipoSeleccionado(),
             descripcion: (descripcion ?? '').trim(),
-            monto: Number(monto),
+            monto: redondearMonto(Number(monto)),
             categoria: categoria ?? '',
-            fecha: fecha ?? fechaDeHoy(),
+            fecha: fechaDeHoy(),
         };
 
         this.vistaPrevia.update((filas) => [nuevaFila, ...filas]);
@@ -103,7 +118,6 @@ export class NuevoRegistro {
         this.formulario.reset({
             descripcion: '',
             monto: null,
-            fecha: fechaDeHoy(),
             categoria: '',
         });
     }

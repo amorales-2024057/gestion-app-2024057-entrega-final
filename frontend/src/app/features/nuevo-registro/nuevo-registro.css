@@ -320,6 +320,25 @@
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
+.campo__opcional {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.campo__fecha-fija {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #eef2f6;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 13px 14px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
 .campo input::placeholder {
   color: #94a3b8;
 }

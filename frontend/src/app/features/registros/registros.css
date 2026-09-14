@@ -734,6 +734,25 @@
   outline: none;
 }
 
+.campo__opcional {
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.campo__fecha-fija {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #ffffff);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
 .campo input:focus,
 .campo select:focus {
   border-color: var(--color-accent-light, #3b82f6);

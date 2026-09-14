@@ -34,6 +34,10 @@
       </header>
 
       <form [formGroup]="formulario" (ngSubmit)="enviar()" class="formulario" novalidate>
+        @if (mensajeExito()) {
+          <div class="alerta alerta--exito">{{ mensajeExito() }}</div>
+        }
+
         <div class="campo">
           <label for="username">Usuario</label>
           <input

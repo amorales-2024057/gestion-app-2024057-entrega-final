@@ -36,7 +36,7 @@
         </header>
 
         <div class="tipo-movimiento">
-          <span class="tipo-movimiento__etiqueta">TIPO DE MOVIMIENTO:</span>
+          <span class="tipo-movimiento__etiqueta">¿Qué vas a registrar?</span>
 
           <div class="toggle-tipo" role="group" aria-label="Tipo de movimiento">
             <span
@@ -51,7 +51,7 @@
               [attr.aria-pressed]="tipoSeleccionado() === 'INGRESO'"
               (click)="seleccionarTipo('INGRESO')"
             >
-              INGRESO
+              Ingreso
             </button>
             <button
               type="button"
@@ -60,23 +60,24 @@
               [attr.aria-pressed]="tipoSeleccionado() === 'EGRESO'"
               (click)="seleccionarTipo('EGRESO')"
             >
-              EGRESO
+              Egreso
             </button>
           </div>
         </div>
 
         <form [formGroup]="formulario" (ngSubmit)="agregarALaLista()" class="formulario" novalidate>
           <div class="campo">
-            <label for="descripcion">Descripción:</label>
+            <label for="descripcion">Descripción <span class="campo__opcional">(opcional)</span>:</label>
             <input
               id="descripcion"
               type="text"
               formControlName="descripcion"
-              placeholder="El salario fijo"
+              placeholder="Ej. Salario de este mes"
+              maxlength="100"
               autocomplete="off"
             />
             @if (formulario.get('descripcion')?.invalid && formulario.get('descripcion')?.touched) {
-              <span class="campo__error">Ingrese una descripción (máximo 150 caracteres).</span>
+              <span class="campo__error">La descripción no puede superar los 100 caracteres.</span>
             }
           </div>
 
@@ -96,11 +97,8 @@
           </div>
 
           <div class="campo">
-            <label for="fecha">Fecha:</label>
-            <input id="fecha" type="date" formControlName="fecha" />
-            @if (formulario.get('fecha')?.invalid && formulario.get('fecha')?.touched) {
-              <span class="campo__error">Seleccione una fecha.</span>
-            }
+            <label>Fecha:</label>
+            <p class="campo__fecha-fija">{{ hoyTexto }} (hoy)</p>
           </div>
 
           <div class="campo">
@@ -118,7 +116,7 @@
 
           <button type="submit" class="boton-agregar">
             <span class="boton-agregar__icono" aria-hidden="true">+</span>
-            AGREGAR A LA LISTA
+            Agregar a la lista
           </button>
         </form>
       </article>
@@ -150,12 +148,12 @@
                 </span>
 
                 <div class="fila-previa__info">
-                  <strong>{{ fila.descripcion }}</strong>
-                  <span>{{ fila.tipo }} · {{ etiquetaCategoria(fila.tipo, fila.categoria) }}</span>
+                  <strong>{{ descripcionAMostrar(fila.descripcion) }}</strong>
+                  <span>{{ fila.tipo === 'EGRESO' ? 'Egreso' : 'Ingreso' }} · {{ etiquetaCategoria(fila.tipo, fila.categoria) }}</span>
                 </div>
 
                 <span class="fila-previa__monto" [class.fila-previa__monto--egreso]="fila.tipo === 'EGRESO'">
-                  {{ fila.tipo === 'EGRESO' ? '−' : '+' }} {{ formatearMonto(fila.monto) }}
+                  {{ formatearMonto(fila.monto) }}
                 </span>
 
                 <button
@@ -173,8 +171,12 @@
 
         <footer class="panel__pie">
           <div class="balance-a-registrar">
-            <span>Balance a registrar:</span>
-            <strong>{{ balanceARegistrarTexto() }}</strong>
+            <span>Total de ingresos a guardar:</span>
+            <strong>{{ formatearMonto(totalIngresosVista()) }}</strong>
+          </div>
+          <div class="balance-a-registrar">
+            <span>Total de egresos a guardar:</span>
+            <strong>{{ formatearMonto(totalEgresosVista()) }}</strong>
           </div>
 
           @if (mensajeError(); as error) {
@@ -200,9 +202,9 @@
               </svg>
             </span>
             @if (guardando()) {
-              GUARDANDO...
+              Guardando...
             } @else {
-              CONFIRMAR Y GUARDAR REGISTRO
+              Guardar registro
             }
           </button>
         </footer>
