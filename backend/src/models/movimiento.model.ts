@@ -64,4 +64,9 @@ export interface ResumenFinanciero {
     tarjetas: TarjetaResumen[];
     balanceAnual: PuntoGrafica[];
     balanceMensual: PuntoGrafica[];
+    totales?: {
+        totalIngresos: number;
+        totalEgresos: number;
+        balanceDisponible: number;
+    };
 }

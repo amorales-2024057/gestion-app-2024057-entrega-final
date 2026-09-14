@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -11,11 +11,20 @@ import {
 } from '../../core/models/movimiento.model';
 
 function formatearMoneda(valor: number): string {
-    return `Q${valor.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Q${Math.abs(valor).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function redondearMonto(valor: number): number {
+    return Math.round(valor * 100) / 100;
 }
 
 function fechaDeHoy(): string {
     return new Date().toISOString().slice(0, 10);
+}
+
+function fechaDeHoyTexto(): string {
+    const [anio, mes, dia] = fechaDeHoy().split('-');
+    return `${dia}/${mes}/${anio}`;
 }
 
 @Component({
@@ -25,7 +34,7 @@ function fechaDeHoy(): string {
     templateUrl: './nuevo-registro.html',
     styleUrl: './nuevo-registro.css',
 })
-export class NuevoRegistro {
+export class NuevoRegistro implements OnInit {
     private readonly fb = inject(FormBuilder);
     private readonly authService = inject(AuthService);
     private readonly movimientoService = inject(MovimientoService);
@@ -38,26 +47,64 @@ export class NuevoRegistro {
 
     protected readonly vistaPrevia = signal<MovimientoEnVistaPrevia[]>([]);
 
-    protected readonly balanceARegistrar = computed(() =>
-        this.vistaPrevia().reduce(
-            (total, fila) => total + (fila.tipo === 'EGRESO' ? -fila.monto : fila.monto),
-            0
-        )
+    protected readonly totalIngresosVista = computed(() =>
+        this.vistaPrevia()
+            .filter((fila) => fila.tipo === 'INGRESO')
+            .reduce((total, fila) => total + fila.monto, 0)
     );
-    protected readonly balanceARegistrarTexto = computed(() =>
-        formatearMoneda(this.balanceARegistrar())
+    protected readonly totalEgresosVista = computed(() =>
+        this.vistaPrevia()
+            .filter((fila) => fila.tipo === 'EGRESO')
+            .reduce((total, fila) => total + fila.monto, 0)
     );
+
+    protected readonly balanceDisponibleServidor = signal<number>(0);
+    protected readonly totalIngresosServidor = signal<number>(0);
+    protected readonly totalEgresosServidor = signal<number>(0);
+    protected readonly cargandoBalance = signal<boolean>(true);
+
+    protected readonly totalIngresosGlobal = computed(() =>
+        Math.round((this.totalIngresosServidor() + this.totalIngresosVista()) * 100) / 100
+    );
+    protected readonly totalEgresosGlobal = computed(() =>
+        Math.round((this.totalEgresosServidor() + this.totalEgresosVista()) * 100) / 100
+    );
+    protected readonly balanceDisponibleActual = computed(() =>
+        Math.round((this.totalIngresosGlobal() - this.totalEgresosGlobal()) * 100) / 100
+    );
+
+    protected readonly hoyTexto = fechaDeHoyTexto();
 
     protected readonly guardando = signal(false);
     protected readonly mensajeError = signal<string | null>(null);
     protected readonly mensajeExito = signal<string | null>(null);
 
     protected readonly formulario = this.fb.group({
-        descripcion: ['', [Validators.required, Validators.maxLength(150)]],
+        descripcion: ['', [Validators.maxLength(100)]],
         monto: [null as number | null, [Validators.required, Validators.min(0.01)]],
-        fecha: [fechaDeHoy(), [Validators.required]],
         categoria: ['', [Validators.required]],
     });
+
+    ngOnInit(): void {
+        this.cargarBalance();
+    }
+
+    protected cargarBalance(): void {
+        this.cargandoBalance.set(true);
+        this.movimientoService.obtenerResumen().subscribe({
+            next: (resumen) => {
+                if (resumen.totales) {
+                    this.totalIngresosServidor.set(resumen.totales.totalIngresos);
+                    this.totalEgresosServidor.set(resumen.totales.totalEgresos);
+                    this.balanceDisponibleServidor.set(resumen.totales.balanceDisponible);
+                }
+                this.cargandoBalance.set(false);
+            },
+            error: () => {
+                this.cargandoBalance.set(false);
+            },
+        });
+    }
 
     protected seleccionarTipo(tipo: TipoMovimiento): void {
         if (this.tipoSeleccionado() === tipo) {
@@ -65,6 +112,7 @@ export class NuevoRegistro {
         }
         this.tipoSeleccionado.set(tipo);
         this.formulario.patchValue({ categoria: '' });
+        this.mensajeError.set(null);
     }
 
     protected etiquetaCategoria(tipo: TipoMovimiento, valor: string): string {
@@ -73,6 +121,10 @@ export class NuevoRegistro {
 
     protected formatearMonto(valor: number): string {
         return formatearMoneda(valor);
+    }
+
+    protected descripcionAMostrar(descripcion: string): string {
+        return descripcion.trim() ? descripcion : 'Sin descripción';
     }
 
     protected agregarALaLista(): void {
@@ -84,7 +136,18 @@ export class NuevoRegistro {
         this.mensajeExito.set(null);
         this.mensajeError.set(null);
 
-        const { descripcion, monto, fecha, categoria } = this.formulario.getRawValue();
+        const { descripcion, monto, categoria } = this.formulario.getRawValue();
+        const montoNumerico = redondearMonto(Number(monto));
+
+        if (this.tipoSeleccionado() === 'EGRESO') {
+            const disponible = this.balanceDisponibleActual();
+            if (montoNumerico > disponible) {
+                this.mensajeError.set(
+                    `No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente. (Disponible: ${formatearMoneda(disponible)})`
+                );
+                return;
+            }
+        }
 
         const nuevaFila: MovimientoEnVistaPrevia = {
             idLocal:
@@ -93,9 +156,9 @@ export class NuevoRegistro {
                     : `${Date.now()}-${Math.random()}`,
             tipo: this.tipoSeleccionado(),
             descripcion: (descripcion ?? '').trim(),
-            monto: Number(monto),
+            monto: montoNumerico,
             categoria: categoria ?? '',
-            fecha: fecha ?? fechaDeHoy(),
+            fecha: fechaDeHoy(),
         };
 
         this.vistaPrevia.update((filas) => [nuevaFila, ...filas]);
@@ -103,13 +166,13 @@ export class NuevoRegistro {
         this.formulario.reset({
             descripcion: '',
             monto: null,
-            fecha: fechaDeHoy(),
             categoria: '',
         });
     }
 
     protected quitarDeLaLista(idLocal: string): void {
         this.vistaPrevia.update((filas) => filas.filter((fila) => fila.idLocal !== idLocal));
+        this.mensajeError.set(null);
     }
 
     protected confirmarYGuardar(): void {
@@ -117,9 +180,17 @@ export class NuevoRegistro {
             return;
         }
 
-        this.guardando.set(true);
         this.mensajeError.set(null);
         this.mensajeExito.set(null);
+
+        if (this.balanceDisponibleActual() < 0) {
+            this.mensajeError.set(
+                'No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente.'
+            );
+            return;
+        }
+
+        this.guardando.set(true);
 
         const movimientos = this.vistaPrevia().map(({ idLocal, ...movimiento }) => movimiento);
 
@@ -128,6 +199,7 @@ export class NuevoRegistro {
                 this.guardando.set(false);
                 this.vistaPrevia.set([]);
                 this.mensajeExito.set('Su registro se guardó correctamente. El dashboard ya está actualizado.');
+                this.cargarBalance();
             },
             error: (error) => {
                 this.guardando.set(false);

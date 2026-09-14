@@ -10,9 +10,6 @@ export interface LoginResponse {
     usuario: UsuarioPublico;
 }
 
-// Datos que llegan desde el boton "Crear cuenta" del login. El rol
-// siempre se asigna como 'USER' en el backend: nadie puede
-// autopromoverse a ADMIN a traves del registro publico.
 export interface RegistroRequest {
     nombre: string;
     apellido: string;
@@ -27,4 +24,8 @@ export interface JwtPayload {
     id: number;
     username: string;
     rol: 'ADMIN' | 'USER';
+}
+
+export interface GoogleLoginRequest {
+    credential: string;
 }

@@ -18,7 +18,11 @@
 
       @if (usuario(); as datosUsuario) {
         <div class="userbox">
-          <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+          @if (datosUsuario.avatarUrl) {
+  <img class="userbox__avatar" [src]="datosUsuario.avatarUrl" [alt]="datosUsuario.nombre" />
+} @else {
+  <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+}
           <div class="userbox__text">
             <span class="userbox__hi">Hola</span>
             <span class="userbox__name">{{ datosUsuario.nombre }}</span>
@@ -172,13 +176,13 @@
             @for (movimiento of paginaMovimientos(); track movimiento.id) {
               <tr class="tabla__fila">
                 <td class="tabla__fecha">{{ formatearFecha(movimiento.fecha) }}</td>
-                <td class="tabla__descripcion">{{ movimiento.descripcion }}</td>
+                <td class="tabla__descripcion">{{ descripcionAMostrar(movimiento.descripcion) }}</td>
                 <td><span class="tabla__categoria">{{ movimiento.categoriaEtiqueta }}</span></td>
                 <td
                   class="tabla__monto"
                   [class.tabla__monto--ingreso]="movimiento.tipo === 'INGRESO'"
                   [class.tabla__monto--egreso]="movimiento.tipo === 'EGRESO'"
-                >{{ formatearMovimiento(movimiento) }}</td>
+                >{{ formatearMonto(movimiento.monto) }}</td>
                 <td class="tabla__acciones">
                   <button type="button" class="accion" (click)="ver(movimiento)">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -243,9 +247,9 @@
           <p class="modal__tipo" [class.modal__tipo--egreso]="movimiento.tipo === 'EGRESO'">
             {{ movimiento.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso' }}
           </p>
-          <p class="modal__descripcion">{{ movimiento.descripcion }}</p>
+          <p class="modal__descripcion">{{ descripcionAMostrar(movimiento.descripcion) }}</p>
           <p class="modal__monto tabla__monto" [class.tabla__monto--ingreso]="movimiento.tipo === 'INGRESO'" [class.tabla__monto--egreso]="movimiento.tipo === 'EGRESO'">
-            {{ formatearMovimiento(movimiento) }}
+            {{ formatearMonto(movimiento.monto) }}
           </p>
           <dl class="modal__datos">
             <div>
@@ -279,10 +283,10 @@
           </div>
 
           <div class="campo">
-            <label for="editar-descripcion">Descripción</label>
-            <input id="editar-descripcion" type="text" formControlName="descripcion" maxlength="150" />
+            <label for="editar-descripcion">Descripción <span class="campo__opcional">(opcional)</span></label>
+            <input id="editar-descripcion" type="text" formControlName="descripcion" maxlength="100" />
             @if (formularioEdicion.get('descripcion')?.invalid && formularioEdicion.get('descripcion')?.touched) {
-              <span class="campo__error">La descripción es obligatoria (máx. 150 caracteres).</span>
+              <span class="campo__error">La descripción no puede superar los 100 caracteres.</span>
             }
           </div>
 
@@ -295,11 +299,8 @@
               }
             </div>
             <div class="campo">
-              <label for="editar-fecha">Fecha</label>
-              <input id="editar-fecha" type="date" formControlName="fecha" />
-              @if (formularioEdicion.get('fecha')?.invalid && formularioEdicion.get('fecha')?.touched) {
-                <span class="campo__error">Seleccione una fecha válida.</span>
-              }
+              <label>Fecha</label>
+              <p class="campo__fecha-fija">{{ hoyTexto }} (hoy)</p>
             </div>
           </div>
 
@@ -333,7 +334,7 @@
         <div class="modal__cuerpo">
           <p class="modal__texto">
             ¿Está seguro que desea eliminar el registro
-            <strong>"{{ movimiento.descripcion }}"</strong> por
+            <strong>"{{ descripcionAMostrar(movimiento.descripcion) }}"</strong> por
             <strong>{{ formatearMonto(movimiento.monto) }}</strong>?
             Esta acción no se puede deshacer.
           </p>

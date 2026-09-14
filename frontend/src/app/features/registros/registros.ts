@@ -20,6 +20,10 @@ const formateadorMoneda = new Intl.NumberFormat('es-GT', {
     currency: 'GTQ',
 });
 
+function formatearMonto(monto: number): string {
+    return formateadorMoneda.format(Math.abs(monto));
+}
+
 function etiquetaDeCategoria(movimiento: MovimientoPublico): string {
     const todas = [...categoriasPorTipo('INGRESO'), ...categoriasPorTipo('EGRESO')];
     const encontrada = todas.find((c) => c.valor === movimiento.categoria);
@@ -30,6 +34,15 @@ function etiquetaDeCategoria(movimiento: MovimientoPublico): string {
         movimiento.categoria.charAt(0) +
         movimiento.categoria.slice(1).toLowerCase().replace(/_/g, ' ')
     );
+}
+
+function fechaDeHoy(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function fechaDeHoyTexto(): string {
+    const [anio, mes, dia] = fechaDeHoy().split('-');
+    return `${dia}/${mes}/${anio}`;
 }
 
 function perteneceAlMes(fecha: string, referencia: Date): boolean {
@@ -69,13 +82,13 @@ export class Registros implements OnInit {
     protected readonly enEdicion = signal<MovimientoVista | null>(null);
     protected readonly enEliminacion = signal<MovimientoVista | null>(null);
     protected readonly guardando = signal(false);
+    protected readonly hoyTexto = fechaDeHoyTexto();
 
     protected readonly formularioEdicion = this.fb.group({
         tipo: ['INGRESO' as TipoMovimiento, Validators.required],
-        descripcion: ['', [Validators.required, Validators.maxLength(150)]],
+        descripcion: ['', [Validators.maxLength(100)]],
         monto: [0, [Validators.required, Validators.min(0.01)]],
         categoria: ['', Validators.required],
-        fecha: ['', Validators.required],
     });
 
     private readonly movimientosDelPeriodo = computed(() => {
@@ -149,7 +162,7 @@ export class Registros implements OnInit {
     protected readonly deltaEgresos = computed(() => this.deltaPorcentual('EGRESO'));
 
     protected readonly estadoBalance = computed(() =>
-        this.balanceNeto() >= 0 ? 'Superávit activo' : 'Déficit'
+        this.balanceNeto() >= 0 ? 'Te queda dinero disponible' : 'Gastaste más de lo que ingresó'
     );
 
     protected readonly mesActual = computed(() => {
@@ -175,7 +188,7 @@ export class Registros implements OnInit {
         });
     }
 
-    private cargarMovimientos(): void {
+    protected cargarMovimientos(): void {
         this.cargando.set(true);
         this.mensajeError.set(null);
 
@@ -206,7 +219,11 @@ export class Registros implements OnInit {
             return actual > 0 ? 'Nuevo este mes' : 'Sin registros todavía';
         }
         const variacion = ((actual - anterior) / anterior) * 100;
-        return `${variacion >= 0 ? '+' : ''}${variacion.toFixed(0)}% vs mes anterior`;
+        if (Math.round(variacion) === 0) {
+            return 'Igual que el mes pasado';
+        }
+        const comparativo = variacion > 0 ? 'más' : 'menos';
+        return `${Math.abs(variacion).toFixed(0)}% ${comparativo} que el mes pasado`;
     }
 
     private sumarPor(tipo: TipoMovimiento, mesesAtras: number): number {
@@ -218,17 +235,16 @@ export class Registros implements OnInit {
     }
 
     protected formatearMonto(monto: number): string {
-        return formateadorMoneda.format(monto);
-    }
-
-    protected formatearMovimiento(movimiento: MovimientoPublico): string {
-        const signo = movimiento.tipo === 'INGRESO' ? '+' : '-';
-        return `${signo}${formateadorMoneda.format(movimiento.monto)}`;
+        return formatearMonto(monto);
     }
 
     protected formatearFecha(fecha: string): string {
         const [anio, mes, dia] = fecha.split('-');
         return `${dia}/${mes}/${anio}`;
+    }
+
+    protected descripcionAMostrar(descripcion: string): string {
+        return descripcion.trim() ? descripcion : 'Sin descripción';
     }
 
     protected cambiarFiltroTipo(tipo: FiltroTipo): void {
@@ -263,7 +279,6 @@ export class Registros implements OnInit {
             descripcion: movimiento.descripcion,
             monto: movimiento.monto,
             categoria: movimiento.categoria,
-            fecha: movimiento.fecha,
         });
     }
 
@@ -277,8 +292,14 @@ export class Registros implements OnInit {
             return;
         }
 
-        const datos = this.formularioEdicion.getRawValue() as CrearMovimientoRequest;
-        datos.monto = Number(datos.monto);
+        const valores = this.formularioEdicion.getRawValue();
+        const datos: CrearMovimientoRequest = {
+            tipo: valores.tipo as TipoMovimiento,
+            descripcion: (valores.descripcion ?? '').trim(),
+            monto: Math.round(Number(valores.monto) * 100) / 100,
+            categoria: valores.categoria ?? '',
+            fecha: fechaDeHoy(),
+        };
 
         this.guardando.set(true);
         this.movimientoService.actualizar(movimiento.id, datos).subscribe({

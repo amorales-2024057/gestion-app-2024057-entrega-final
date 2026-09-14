@@ -119,6 +119,7 @@
 }
 
 .userbox__avatar {
+  object-fit: cover;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -318,6 +319,25 @@
   padding: 13px 14px;
   outline: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.campo__opcional {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.campo__fecha-fija {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #eef2f6;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 13px 14px;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .campo input::placeholder {
@@ -606,6 +626,51 @@
 
 .boton-confirmar__icono {
   display: inline-flex;
+}
+
+.banner-disponible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(20, 184, 196, 0.12);
+  border: 1px solid rgba(20, 184, 196, 0.35);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: #a5f3fc;
+  animation: entrada-suave 0.3s ease forwards;
+}
+
+.banner-disponible strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.banner-disponible--agotado {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+}
+
+.banner-disponible--agotado strong {
+  color: #fca5a5;
+}
+
+.formulario .alerta {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.balance-a-registrar--disponible strong {
+  color: #38bdf8;
+}
+
+.texto-alerta {
+  color: #f87171 !important;
 }
 
 @media (max-width: 960px) {
