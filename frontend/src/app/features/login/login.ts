@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
@@ -15,10 +15,16 @@ export class Login {
     private readonly fb = inject(FormBuilder);
     private readonly authService = inject(AuthService);
     private readonly router = inject(Router);
+    private readonly activatedRoute = inject(ActivatedRoute);
 
     protected readonly cargando = signal(false);
     protected readonly mensajeError = signal<string | null>(null);
     protected readonly mostrarPassword = signal(false);
+    protected readonly mensajeExito = signal<string | null>(
+        this.activatedRoute.snapshot.queryParamMap.get('registrado')
+            ? 'Su cuenta se creó correctamente. Ahora inicie sesión.'
+            : null
+    );
 
     protected readonly formulario = this.fb.group({
         username: ['', [Validators.required]],
@@ -37,6 +43,7 @@ export class Login {
 
         this.cargando.set(true);
         this.mensajeError.set(null);
+        this.mensajeExito.set(null);
 
         const { username, password } = this.formulario.getRawValue();
 
