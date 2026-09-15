@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -34,7 +34,7 @@ function fechaDeHoyTexto(): string {
     templateUrl: './nuevo-registro.html',
     styleUrl: './nuevo-registro.css',
 })
-export class NuevoRegistro implements OnInit {
+export class NuevoRegistro implements OnInit, OnDestroy {
     private readonly fb = inject(FormBuilder);
     private readonly authService = inject(AuthService);
     private readonly movimientoService = inject(MovimientoService);
@@ -78,6 +78,7 @@ export class NuevoRegistro implements OnInit {
     protected readonly guardando = signal(false);
     protected readonly mensajeError = signal<string | null>(null);
     protected readonly mensajeExito = signal<string | null>(null);
+    private temporizadorMensaje: ReturnType<typeof setTimeout> | null = null;
 
     protected readonly formulario = this.fb.group({
         descripcion: ['', [Validators.maxLength(100)]],
@@ -87,6 +88,37 @@ export class NuevoRegistro implements OnInit {
 
     ngOnInit(): void {
         this.cargarBalance();
+    }
+
+    ngOnDestroy(): void {
+        this.limpiarTemporizadorMensaje();
+    }
+
+    private mostrarMensajeError(mensaje: string): void {
+        this.limpiarTemporizadorMensaje();
+        this.mensajeExito.set(null);
+        this.mensajeError.set(mensaje);
+        this.temporizadorMensaje = setTimeout(() => {
+            this.mensajeError.set(null);
+            this.temporizadorMensaje = null;
+        }, 5000);
+    }
+
+    private mostrarMensajeExito(mensaje: string): void {
+        this.limpiarTemporizadorMensaje();
+        this.mensajeError.set(null);
+        this.mensajeExito.set(mensaje);
+        this.temporizadorMensaje = setTimeout(() => {
+            this.mensajeExito.set(null);
+            this.temporizadorMensaje = null;
+        }, 5000);
+    }
+
+    private limpiarTemporizadorMensaje(): void {
+        if (this.temporizadorMensaje !== null) {
+            clearTimeout(this.temporizadorMensaje);
+            this.temporizadorMensaje = null;
+        }
     }
 
     protected cargarBalance(): void {
@@ -112,6 +144,7 @@ export class NuevoRegistro implements OnInit {
         }
         this.tipoSeleccionado.set(tipo);
         this.formulario.patchValue({ categoria: '' });
+        this.limpiarTemporizadorMensaje();
         this.mensajeError.set(null);
     }
 
@@ -133,6 +166,7 @@ export class NuevoRegistro implements OnInit {
             return;
         }
 
+        this.limpiarTemporizadorMensaje();
         this.mensajeExito.set(null);
         this.mensajeError.set(null);
 
@@ -142,7 +176,7 @@ export class NuevoRegistro implements OnInit {
         if (this.tipoSeleccionado() === 'EGRESO') {
             const disponible = this.balanceDisponibleActual();
             if (montoNumerico > disponible) {
-                this.mensajeError.set(
+                this.mostrarMensajeError(
                     `No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente. (Disponible: ${formatearMoneda(disponible)})`
                 );
                 return;
@@ -172,6 +206,7 @@ export class NuevoRegistro implements OnInit {
 
     protected quitarDeLaLista(idLocal: string): void {
         this.vistaPrevia.update((filas) => filas.filter((fila) => fila.idLocal !== idLocal));
+        this.limpiarTemporizadorMensaje();
         this.mensajeError.set(null);
     }
 
@@ -180,11 +215,12 @@ export class NuevoRegistro implements OnInit {
             return;
         }
 
+        this.limpiarTemporizadorMensaje();
         this.mensajeError.set(null);
         this.mensajeExito.set(null);
 
         if (this.balanceDisponibleActual() < 0) {
-            this.mensajeError.set(
+            this.mostrarMensajeError(
                 'No se puede registrar el egreso porque supera el límite de los ingresos ya ingresados anteriormente.'
             );
             return;
@@ -198,12 +234,12 @@ export class NuevoRegistro implements OnInit {
             next: () => {
                 this.guardando.set(false);
                 this.vistaPrevia.set([]);
-                this.mensajeExito.set('Su registro se guardó correctamente. El dashboard ya está actualizado.');
+                this.mostrarMensajeExito('Su registro se guardó correctamente. El dashboard ya está actualizado.');
                 this.cargarBalance();
             },
             error: (error) => {
                 this.guardando.set(false);
-                this.mensajeError.set(
+                this.mostrarMensajeError(
                     error?.error?.mensaje ?? 'No se pudo guardar el registro. Por favor, intente de nuevo.'
                 );
             },

@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
-import { LoginRequest, LoginResponse, RegistroRequest, UsuarioPublico } from '../models/usuario.model';
+import { ActualizarPerfilRequest, LoginRequest, LoginResponse, RegistroRequest, UsuarioPublico } from '../models/usuario.model';
 import { SesionExpiradaService } from './sesion-expirada.service';
 
 const CLAVE_TOKEN = 'finanzas_token';
@@ -49,6 +49,28 @@ export class AuthService {
 
     registrar(datos: RegistroRequest): Observable<LoginResponse> {
         return this.http.post<LoginResponse>(`${API_BASE_URL}/auth/registro`, datos);
+    }
+
+    obtenerPerfil(): Observable<UsuarioPublico> {
+        return this.http
+            .get<UsuarioPublico>(`${API_BASE_URL}/usuarios/perfil`)
+            .pipe(
+                tap((usuario) => {
+                    localStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuario));
+                    this.usuarioActual.set(usuario);
+                })
+            );
+    }
+
+    actualizarPerfil(datos: ActualizarPerfilRequest): Observable<UsuarioPublico> {
+        return this.http
+            .put<UsuarioPublico>(`${API_BASE_URL}/usuarios/perfil`, datos)
+            .pipe(
+                tap((usuarioActualizado) => {
+                    localStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuarioActualizado));
+                    this.usuarioActual.set(usuarioActualizado);
+                })
+            );
     }
 
     private guardarSesion(respuesta: LoginResponse): void {

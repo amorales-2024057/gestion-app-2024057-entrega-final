@@ -3,7 +3,6 @@
 
   <div class="dashboard-page__inner">
 
-    <!-- barra de navegacion -->
     <header class="navbar">
       <div class="brand">
         <img src="logo-icono.png" alt="Code Pulse" class="brand__logo" />
@@ -18,21 +17,20 @@
       </nav>
 
       @if (usuario(); as datosUsuario) {
-        <div class="userbox">
+        <a routerLink="/cuenta" class="userbox userbox--link" title="Mi Cuenta">
           @if (datosUsuario.avatarUrl) {
-  <img class="userbox__avatar" [src]="datosUsuario.avatarUrl" [alt]="datosUsuario.nombre" />
-} @else {
-  <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
-}
+            <img class="userbox__avatar" [src]="datosUsuario.avatarUrl" [alt]="datosUsuario.nombre" />
+          } @else {
+            <span class="userbox__avatar">{{ datosUsuario.nombre.charAt(0) }}</span>
+          }
           <div class="userbox__text">
             <span class="userbox__hi">Hola</span>
             <span class="userbox__name">{{ datosUsuario.nombre }}</span>
           </div>
-        </div>
+        </a>
       }
     </header>
 
-    <!-- encabezado de la pagina -->
     <section class="page-head">
       <div class="page-head__titles">
         <h1>Vista del Dashboard</h1>
@@ -60,7 +58,6 @@
       </div>
     }
 
-    <!-- tarjetas de estadisticas -->
     <section class="stats">
       @if (cargando()) {
         @for (relleno of [1, 2, 3, 4]; track relleno) {
@@ -119,7 +116,6 @@
       }
     </section>
 
-    <!-- graficas -->
     <section class="charts">
 
       <article class="chart-card chart-card--light">
