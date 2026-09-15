@@ -11,8 +11,6 @@ const GENEROS_VALIDOS: GeneroUsuario[] = [
     'PREFIERO_NO_DECIRLO',
 ];
 
-const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function validarDatosPerfil(datos: ActualizarPerfilRequest): void {
     if (!datos.nombre?.trim() || !datos.apellido?.trim()) {
         throw new ApiError(400, 'El nombre y el apellido son obligatorios.');
@@ -20,10 +18,6 @@ function validarDatosPerfil(datos: ActualizarPerfilRequest): void {
 
     if (!datos.username?.trim() || datos.username.trim().length < 3) {
         throw new ApiError(400, 'El nombre de usuario debe tener al menos 3 caracteres.');
-    }
-
-    if (!datos.email?.trim() || !REGEX_EMAIL.test(datos.email.trim())) {
-        throw new ApiError(400, 'El correo electrónico no es válido.');
     }
 
     if (!GENEROS_VALIDOS.includes(datos.genero)) {
@@ -36,25 +30,27 @@ function validarDatosPerfil(datos: ActualizarPerfilRequest): void {
 }
 
 export const usuarioService = {
-    // Actualiza nombre, apellido, email, genero, username, telefono y,
-    // opcionalmente, la contrasena de un usuario ya autenticado. Este es
-    // el endpoint que deja la base de datos de "usuarios" con toda la
-    // informacion profesional que pidio el cliente (nombre, apellido,
-    // email, contrasena, genero, rol, nombre de usuario, telefono).
+    async obtenerPerfil(id: number): Promise<UsuarioPublico> {
+        const usuario = await usuarioRepository.buscarPorId(id);
+        if (!usuario) {
+            throw new ApiError(404, 'Usuario no encontrado.');
+        }
+        return aUsuarioPublico(usuario);
+    },
+
     async actualizarPerfil(id: number, datos: ActualizarPerfilRequest): Promise<UsuarioPublico> {
         validarDatosPerfil(datos);
 
+        const usuarioExistente = await usuarioRepository.buscarPorId(id);
+        if (!usuarioExistente) {
+            throw new ApiError(404, 'Usuario no encontrado.');
+        }
+
         const usernameLimpio = datos.username.trim();
-        const emailLimpio = datos.email.trim().toLowerCase();
 
         const usernameOcupado = await usuarioRepository.existeUsernameDeOtroUsuario(usernameLimpio, id);
         if (usernameOcupado) {
             throw new ApiError(409, 'Ese nombre de usuario ya está en uso.');
-        }
-
-        const emailOcupado = await usuarioRepository.existeEmailDeOtroUsuario(emailLimpio, id);
-        if (emailOcupado) {
-            throw new ApiError(409, 'Ese correo electrónico ya está en uso.');
         }
 
         const passwordHash = datos.password ? await bcrypt.hash(datos.password, 10) : null;
@@ -64,7 +60,7 @@ export const usuarioService = {
             {
                 ...datos,
                 username: usernameLimpio,
-                email: emailLimpio,
+                email: usuarioExistente.email,
                 nombre: datos.nombre.trim(),
                 apellido: datos.apellido.trim(),
                 telefono: datos.telefono?.trim() || null,
